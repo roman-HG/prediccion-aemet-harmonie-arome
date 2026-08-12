@@ -3,12 +3,10 @@
 
 import rioxarray as rxr
 import pandas as pd
-import json
 import requests
-import os
 import tarfile
+import os
 import datetime
-import matplotlib.pyplot as plt
 import shutil
 
 #Remove tiff git folder to update its files
@@ -40,14 +38,15 @@ idate=datetime.datetime.strptime(idate, "%Y-%m-%dT%H:%M:%S")
 its=idate.timestamp()
 
 #Define Aemet Harmonie-Arome encoding
-#[temperature, viento, lluvia1h, lluvia3h, lluvia6h, nubosidad, rayos,rayos3h, rachas, rachas3h]
-d_code=["_11.tif","_32.tif","_61_1HH.tif","_61_3HH.tif","_61_6HH.tif","_71.tif","_207.tif","_207_3HH.tif","_228.tif","_228_3HH.tif"]
+#[temperatura, viento, lluvia1h, lluvia3h, lluvia6h, nubosidad, rayos,rayos3h, rachas, rachas3h]
+#d_code=["_11.tif","_32.tif","_61_1HH.tif","_61_3HH.tif","_61_6HH.tif","_71.tif","_207.tif","_207_3HH.tif","_228.tif","_228_3HH.tif"]
+d_code=["_11.tif","_61_1HH.tif"]
 
 for i,d in enumerate(d_code):
     #i is the index of the data, 0 for temperature 1 for rainfall
     #d is the coding defined in d_code
     #Now define the scale according to data type
-    if(i==0):
+    if(d=="_11.tif"):
         hescala={
         "R":[122,150,181,209,138,166,196,224,255,26,26,28,28,31,0,10,20,33,102,204,255,255,255,255,255,255,255,232,209,178,161,138],
         "G":[56,48,41,33,43,97,148,201,255,26,54,84,112,143,237,217,196,178,255,255,255,222,191,158,128,0,51,51,51,51,54,54],
@@ -55,7 +54,7 @@ for i,d in enumerate(d_code):
         "v":[-27.5,-22.5,-17.5,-12.5,-9,-7,-5,-3,-1,1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,44]
         }
         hescala_df=pd.DataFrame(hescala)
-    elif(i==1):
+    elif(d=="_32.tif"):
         hescala={
         "R":[216,175,102,80,168,217,255,255,255,255,255,153,153],
         "G":[250,249,246,249,244,242,201,138,105,89,120,102,51],
@@ -63,7 +62,7 @@ for i,d in enumerate(d_code):
         "v":[5,15,25,35,45,55,65,75,85,95,105,115,120]
         }
         hescala_df=pd.DataFrame(hescala)
-    elif(i==2 or i==3 or i==4):
+    elif(d=="_61_1HH.tif" or d=="_61_3HH.tif" or d=="_61_6HH.tif"):
         hescala={
         "R":[19,176,51,0,0,0,128,191,255,255,255,255,204,219,236],
         "G":[49,224,245,204,178,153,204,230,255,186,122,61,84,141,200],
@@ -71,7 +70,7 @@ for i,d in enumerate(d_code):
         "v":[0,0.75,1.5,3.5,7.5,15,25,35,50,70,90,110,150,215,275]
         }
         hescala_df=pd.DataFrame(hescala)
-    elif(i==5):
+    elif(d=="_71.tif"):
         hescala={
         "R":[255,217,229,196,160,114,76,33,12],
         "G":[255,217,235,214,196,169,141,115,41],
@@ -79,7 +78,7 @@ for i,d in enumerate(d_code):
         "v":[15,25,35,45,55,65,75,85,90]
         }
         hescala_df=pd.DataFrame(hescala)
-    elif(i==6 or i==7):
+    elif(d=="_207.tif" or d=="_207_3HH.tif"):
         hescala={
         "R":[53,47,41,35,63,147,233,232,229,224,191],
         "G":[151,231,247,244,241,238,235,144,48,0,0],
@@ -87,7 +86,7 @@ for i,d in enumerate(d_code):
         "v":[0.0105,0.03,0.05,0.07,0.09,0.11,0.13,0.15,0.17,0.19,0.2]
         }
         hescala_df=pd.DataFrame(hescala)
-    elif(i==8 or i==9):
+    elif(d=="_228.tif" or d=="_228_3HH.tif"):
         hescala={
         "R":[217,176,102,79,168,217,255,255,255,255,255,153,153,171,190],
         "G":[248,250,247,250,245,242,201,138,105,89,120,102,51,26,0],
@@ -100,13 +99,14 @@ for i,d in enumerate(d_code):
       d_time=idate+datetime.timedelta(hours=H)
       #Get data file
       d_file="down_"+d_time.strftime("%Y-%m-%dT%H:%M:%S")+"+00:00"+d
-      print("file "+d_file)
-      '''
+      #print("file "+d_file)
+      
       if(d_file in files):
         print(d_file+" OK")
       else:
         print(d_file+" ERR")
-      '''
+        continue
+      
       #Open tiff file
       hxr = rxr.open_rasterio(d_file)
 
@@ -140,7 +140,6 @@ for i,d in enumerate(d_code):
         }
       hxr_df=pd.DataFrame(hxr_data)
 
-
     #Loop to compare with each scale step (relative to scale length)
       for n in range(len(hescala['R'])):
         #Calculate total difference with scale steps
@@ -152,8 +151,6 @@ for i,d in enumerate(d_code):
             hxr_df['Nband'].values[ind]=hxr_df['Tband'].values[ind]
             #Use the value index to get the real value from the scale
             hxr_df['Vband'].values[ind]=hescala_df['v'][n]
-
-      pd.set_option('display.max_rows', None)
 
       #Export to raster
       band = hxr.isel(band=3)
