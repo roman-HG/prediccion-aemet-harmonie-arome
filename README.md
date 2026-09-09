@@ -16,4 +16,6 @@ Dependencias de python:
 * rioxarray
 * pandas
 
-**index.html** es un visor que utiliza Leaflet.js para previsualizar las capas actualmente descargadas en la carpeta /tiff
+**index.html** es un visor que utiliza Leaflet.js para previsualizar las capas actualmente descargadas en la carpeta /tiff. Está publicado mediante Github Pages a través del siguiente enlace:
+
+https://roman-hg.github.io/prediccion-aemet-harmonie-arome/
