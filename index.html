@@ -75,7 +75,7 @@
 
       text-align: center;
 
-      font-size: 17px;
+      font-size: 11px;
       font-weight: bold;
       white-space: nowrap;
     }
@@ -303,7 +303,7 @@
   <div id="legendContainer">
 
     <div id="variable">
-      Variable: —
+      
     </div>
 
     <div id="legend">
@@ -815,11 +815,11 @@ function updateLegend(filename) {
     rampLabelsElement.innerHTML = "";
 
     if (!ramp) {
-        variableElement.textContent = "Variable: Unknown";
+        variableElement.textContent = "Unknown";
         return;
     }
 
-    variableElement.textContent = "Variable: " + getVariable(filename);
+    variableElement.textContent = getVariable(filename);
 
     const values = ramp.values;
     const colors = ramp.colors;
