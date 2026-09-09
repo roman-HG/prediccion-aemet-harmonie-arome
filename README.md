@@ -19,3 +19,11 @@ Dependencias de python:
 **index.html** es un visor que utiliza Leaflet.js para previsualizar las capas actualmente descargadas en la carpeta /tiff. Está publicado mediante Github Pages a través del siguiente enlace:
 
 https://roman-hg.github.io/prediccion-aemet-harmonie-arome/
+
+_Nota:_
+Los valores mostrados por Aemet son UTC+2 (Madrid), según el cambio de horario verano-invierno.
+Los valores mostrados en la carpeta de descarga son UTC+0.
+
+<img width="300" height="300" alt="aemet18h" src="https://github.com/user-attachments/assets/3e921b63-624b-43dd-9039-a30775f30e6c" />        <img width="300" height="300" alt="descarga18h" src="https://github.com/user-attachments/assets/9ea64813-a554-496f-b974-869d6bad8cdc" />
+
+
