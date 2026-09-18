@@ -11,7 +11,10 @@ import shutil
 
 #Remove tiff git folder to update its files
 try:
-  shutil.rmtree("./prediccion-aemet-harmonie-arome/tiff")
+  if os.path.exists("./prediccion-aemet-harmonie-arome/tiff"):
+    shutil.rmtree("./prediccion-aemet-harmonie-arome/tiff")
+  if os.path.exists("./harmonie_data"):
+    shutil.rmtree("./harmonie_data")
   os.mkdir("./prediccion-aemet-harmonie-arome/tiff")
 except:
   print("/tiff exists")
