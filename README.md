@@ -9,8 +9,9 @@ El script **arome2geoTiff.py** realiza ingeniería inversa, traduciendo el valor
 * **d_code[]** permite definir las variables a procesar.
 * **lat_min, lat_max** y **lon_min, lon_max** definen la extensión a procesar. (Toda España consume muchos recursos)
 
+**cuArome2geoTiff.py** es la versión optimizada del anterior script, que emplea la librería CuPy para acelerar los cálculos de los rásters a través de la GPU mediante CUDA.
 
-La carpeta /tiff contiene archivos de ejemplo de temperatura ("_11.tiff") y precipitación en 1 hora ("_61_1HH.tiff"), que se actualizan 2 veces al día con los archivos más recientes.
+La carpeta **/tiff** contiene los últimos archivos procesados con una frecuencia de 4 veces al día.
 
 Además, **index.html** es un visor que utiliza Leaflet.js para previsualizar las capas actualmente descargadas en la carpeta /tiff.
 
@@ -28,4 +29,4 @@ Los valores mostrados en la carpeta de descarga son UTC+0.
 **Dependencias de python:**
 * rioxarray
 * pandas
-
+* _cupy_ (en caso de usar el script cuArome2geoTiff.py, que emplea CUDA y requiere una GPU compatible)
