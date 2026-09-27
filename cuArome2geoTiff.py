@@ -37,9 +37,17 @@ OUTPUT_DIR = os.path.join(
 )
 
 # Spain bounding box
+#MAINLAND
+'''
 LAT_MIN = 34.5
 LAT_MAX = 44.3
 LON_MIN = -9.65
+LON_MAX = 4.5
+'''
+#PLUS CANARY ISLANDS
+LAT_MIN = 27.43
+LAT_MAX = 44.3
+LON_MIN = -18.3
 LON_MAX = 4.5
 
 # Number of forecast hours
