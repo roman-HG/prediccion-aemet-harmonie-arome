@@ -65,7 +65,7 @@ N_FORECAST_HOURS = 48
 
 
 # Products
-'''
+
 D_CODES = [
     "_11.tif",      # temperatura
     "_32.tif",      # viento
@@ -83,7 +83,7 @@ D_CODES = [
     "_11.tif",
     "_61_1HH.tif",
 ]
-
+'''
 
 # ============================================================
 # AEMET colour scales
