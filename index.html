@@ -1,1408 +1,2458 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>AEMET GeoTIFF Viewer</title>
+<title>AEMET HARMONIE-AROME Viewer</title>
 
-  <link
+<link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
+/>
 
-  <style>
+<style>
     html,
     body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      font-family: Arial, sans-serif;
-      font-size:12px;
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: Arial, Helvetica, sans-serif;
+        background: #111;
     }
 
     #map {
-      width: 100%;
-      height: 100%;
+        width: 100%;
+        height: 100%;
     }
 
-    /* =====================================================
-       STATUS
-       ===================================================== */
+    #topbar {
+        position: absolute;
+        z-index: 1000;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        padding: 8px 10px;
+
+        background: rgba(255,255,255,0.96);
+        border-radius: 8px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+
+        box-sizing: border-box;
+    }
+
+    #topbar select,
+    #topbar button {
+        height: 34px;
+        border: 1px solid #bbb;
+        border-radius: 5px;
+        background: white;
+        padding: 0 10px;
+        font-size: 13px;
+        cursor: pointer;
+    }
+
+    #topbar select:hover,
+    #topbar button:hover {
+        background: #f2f2f2;
+    }
+
+    #variableSelect {
+        min-width: 150px;
+    }
+
+    #dateSelect {
+        display: none;
+    }
+
+    #githubButton {
+        margin-left: auto;
+    }
 
     #status {
-      position: absolute;
-      bottom: 5px;
-      z-index: 1000;
-
-      max-width: 400px;
-
-      padding: 7px 10px;
-
-      background: rgba(255, 255, 255, 0.92);
-      border-radius: 5px;
-
-      font-size: 10px;
-
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        font-size: 12px;
+        color: #555;
+        white-space: nowrap;
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
+    #timeline {
+        position: absolute;
+        z-index: 1000;
+        top: 60px;
+        left: 50%;
+        transform: translateX(-50%);
 
-    /* =====================================================
-       RIGHT-SIDE LEGEND
-       ===================================================== */
+        width: min(760px, calc(100% - 30px));
 
-    #legendContainer {
-      position: absolute;
-      top: 50%;
-      right: 20px;
-      transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        gap: 6px;
 
-      z-index: 1000;
+        padding: 6px;
 
-      padding: 14px 12px;
+        background: rgba(255,255,255,0.94);
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.20);
 
-      background: rgba(255, 255, 255, 0.94);
-      border-radius: 8px;
-
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+        box-sizing: border-box;
     }
 
-    #variable {
-      margin-bottom: 12px;
+    #prevHour,
+    #nextHour {
+        flex: 0 0 34px;
+        width: 34px;
+        height: 32px;
 
-      text-align: center;
+        border: 1px solid #bbb;
+        border-radius: 5px;
 
-      font-size: 11px;
-      font-weight: bold;
-      white-space: nowrap;
+        background: white;
+        cursor: pointer;
+
+        font-size: 18px;
+        line-height: 30px;
+        padding: 0;
     }
 
-    /*
-     * Legend itself.
-     *
-     * Width:
-     *   color bar = 36px
-     *   labels    = 55px
-     */
+    #prevHour:hover,
+    #nextHour:hover {
+        background: #eee;
+    }
+
+    #hoursViewport {
+        flex: 1;
+        min-width: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+
+        scrollbar-width: thin;
+        cursor: grab;
+    }
+
+    #hoursViewport.dragging {
+        cursor: grabbing;
+    }
+
+    #hours {
+        display: flex;
+        gap: 5px;
+        width: max-content;
+        padding: 1px 3px;
+    }
+
+    .hour {
+        flex: 0 0 auto;
+
+        min-width: 58px;
+        height: 30px;
+
+        border: 1px solid #ccc;
+        border-radius: 5px;
+
+        background: #fff;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        font-size: 12px;
+        color: #333;
+
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .hour:hover {
+        background: #eee;
+    }
+
+    .hour.active {
+        background: #222;
+        color: white;
+        border-color: #222;
+        font-weight: bold;
+    }
 
     #legend {
-      display: flex;
-      align-items: stretch;
-      gap: 8px;
+        position: absolute;
+        z-index: 1000;
+        right: 15px;
+        bottom: 25px;
+
+        width: 230px;
+
+        padding: 10px;
+
+        background: rgba(255,255,255,0.94);
+        border-radius: 7px;
+
+        box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+
+        box-sizing: border-box;
     }
 
-
-    /* =====================================================
-       COLOR BAR
-       ===================================================== */
-#colorRamp {
-    position: relative;
-    width: 36px;
-    height: 360px;
-    display: flex;
-    flex-direction: column;
-    border: 1px solid #444;
-    border-radius: 2px;
-    overflow: hidden;
-}
-
-.rampSegment {
-    width: 100%;
-    min-height: 0;
-}
-
-#rampLabels {
-    position: relative;
-    width: 55px;
-    height: 360px;
-}
-
-.rampLabel {
-    position: absolute;
-    left: 0;
-    transform: translateY(-50%);
-    font-size: 12px;
-    line-height: 1;
-    white-space: nowrap;
-    color: #111;
-}
-
-
-    /* =====================================================
-       PIXEL VALUE
-       ===================================================== */
-
-    #pixelValueContainer {
-      position: absolute;
-
-      left: 20px;
-      bottom: 20px;
-
-      z-index: 1000;
-
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+    #legendTitle {
+        font-weight: bold;
+        font-size: 13px;
+        margin-bottom: 7px;
     }
 
-    #pixelValueTitle {
-      margin-bottom: 5px;
-
-      padding: 3px 8px;
-
-      background: rgba(255, 255, 255, 0.92);
-      border-radius: 4px;
-
-      font-size: 11px;
-      font-weight: bold;
+    #legendGradient {
+        width: 100%;
+        height: 18px;
+        border-radius: 3px;
+        border: 1px solid rgba(0,0,0,0.25);
+        box-sizing: border-box;
     }
 
-    #pixelValueBox {
-      width: 70px;
-      height: 70px;
+    #legendLabels {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 4px;
 
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      border: 2px solid white;
-      border-radius: 6px;
-
-      box-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.4);
-
-      font-size: 18px;
-      font-weight: bold;
-
-      background: white;
-      color: black;
+        font-size: 10px;
+        color: #333;
     }
 
+    #pixelValue {
+        position: absolute;
+        z-index: 1000;
+        left: 15px;
+        bottom: 25px;
 
-    /* =====================================================
-       TIFF SELECTOR
-       ===================================================== */
-#fileSelector {
-    position: absolute;
-    top: 10px;
-    left: 40%;
-    transform: translateX(-50%);
-    z-index: 1000;
+        padding: 7px 10px;
 
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
+        background: rgba(255,255,255,0.94);
+        border-radius: 6px;
 
-#tiffSelect {
-    padding: 8px 10px;
-    font-size: 14px;
-    min-width: 280px;
-    max-width: 500px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.22);
 
-    border: 1px solid #aaa;
-    border-radius: 5px;
-    background: white;
-}
-
-.actionButton {
-    width: 38px;
-    height: 38px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    background: white;
-    color: #222;
-
-    border: 1px solid #aaa;
-    border-radius: 5px;
-
-    text-decoration: none;
-    font-size: 22px;
-    font-weight: bold;
-
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-
-    cursor: pointer;
-}
-
-.actionButton:hover {
-    background: #f0f0f0;
-}
-
-#githubButton svg {
-    width: 21px;
-    height: 21px;
-    fill: currentColor;
-}
-
-    /* =====================================================
-       MOBILE
-       ===================================================== */
-
-    @media (max-width: 600px) {
-
-      #legendContainer {
-        right: 8px;
-        padding: 10px 8px;
-      }
-
-      #colorRamp {
-        width: 28px;
-        height: 280px;
-      }
-
-      #rampLabels {
-        height: 280px;
-        width: 45px;
-      }
-
-      .rampLabel {
-        font-size: 8px;
-      }
-
-      #variable {
-        font-size: 8px;
-      }
-
-      #pixelValueContainer {
-        left: 10px;
-        bottom: 10px;
-      }
-
-      #fileSelector,#status {
-        font-size: 8px;
-      }
-
-      #tiffSelect {
-              top:5px;
-        min-width: 40px;
-        max-width: 50vw;
-        font-size: 8px;
-      }
+        font-size: 12px;
+        color: #222;
     }
-  </style>
+
+    @media (max-width: 700px) {
+
+        #topbar {
+            flex-wrap: wrap;
+        }
+
+        #githubButton {
+            margin-left: 0;
+        }
+
+        #status {
+            width: 100%;
+            max-width: none;
+        }
+
+        #timeline {
+            top: 105px;
+        }
+
+        #legend {
+            right: 8px;
+            bottom: 8px;
+            width: 190px;
+        }
+
+        #pixelValue {
+            left: 8px;
+            bottom: 8px;
+        }
+    }
+</style>
 </head>
 
 <body>
 
-  <!-- =====================================================
-       MAP
-       ===================================================== -->
+<div id="map"></div>
 
-  <div id="map"></div>
+<div id="topbar">
 
-
-  <!-- =====================================================
-       RIGHT LEGEND
-       ===================================================== -->
-
-  <div id="legendContainer">
-
-    <div id="variable">
-      
-    </div>
-
-    <div id="legend">
-
-      <div id="colorRamp"></div>
-
-      <div id="rampLabels"></div>
-
-    </div>
-
-  </div>
-
-
-  <!-- =====================================================
-       PIXEL VALUE
-       ===================================================== -->
-
-  <div id="pixelValueContainer">
-
-    <div id="pixelValueTitle">
-      Value
-    </div>
-
-    <div id="pixelValueBox">
-      —
-    </div>
-
-  </div>
-
-
-  <!-- =====================================================
-       TIFF SELECTOR
-       ===================================================== -->
-
-  <div id="fileSelector">
-	Select file:
-    <select id="tiffSelect">
-      <option value="">
-        Loading TIFF files...
-      </option>
+    <select id="variableSelect">
+        <option value="">Loading variables…</option>
     </select>
-      <!-- GitHub repository button -->
-    <a
-        id="githubButton"
-        class="actionButton"
-        href="https://github.com/roman-HG/prediccion-aemet-harmonie-arome"
-        target="_blank"
-        rel="noopener noreferrer"
-        title="Open GitHub repository"
-    >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2.16c-3.2.69-3.87-1.54-3.87-1.54-.53-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.23-1.28-5.23-5.69 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.47.11-3.06 0 0 .96-.31 3.15 1.18a10.9 10.9 0 0 1 5.74 0c2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.77.11 3.06.73.81 1.18 1.84 1.18 3.1 0 4.42-2.69 5.4-5.25 5.69.41.36.78 1.08.78 2.18v3.23c0 .31.21.67.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/>
-        </svg>
-    </a>
-          <!-- Download displayed TIFF -->
-    <a
-        id="downloadButton"
-        class="actionButton"
-        href="#"
-        target="_blank"
-        rel="noopener noreferrer"
-        title="Download displayed TIFF"
-    >
-            ↓
-  </a>
-  
-  <!-- =====================================================
-       STATUS
-       ===================================================== -->
-<span>
-  <div id="status">
-    Loading TIFF list...
-  </div>
-  </span>
-  </div>
+
+    <select id="dateSelect"></select>
+
+    <button id="downloadButton" type="button">
+        Download
+    </button>
+
+    <button id="githubButton" type="button">
+        GitHub
+    </button>
+
+    <span id="status">
+        Loading…
+    </span>
+
+</div>
+
+<div id="timeline">
+
+    <button id="prevHour" type="button">‹</button>
+
+    <div id="hoursViewport">
+        <div id="hours"></div>
+    </div>
+
+    <button id="nextHour" type="button">›</button>
+
+</div>
+
+<div id="legend">
+
+    <div id="legendTitle">
+        AEMET HARMONIE-AROME
+    </div>
+
+    <div id="legendGradient"></div>
+
+    <div id="legendLabels">
+        <span id="legendMin">-</span>
+        <span id="legendMax">-</span>
+    </div>
+
+</div>
+
+<div id="pixelValue">
+    Move over map
+</div>
 
 
-  <!-- =====================================================
-       LIBRARIES
-       ===================================================== -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <script src="https://theroamingworkshop.cloud/b/wp-content/uploads/2021/08/countries.txt"></script>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <script src="https://cdn.jsdelivr.net/npm/georaster"></script>
-
-  <script src="https://cdn.jsdelivr.net/npm/georaster-layer-for-leaflet@3.10.0/dist/georaster-layer-for-leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
 
 
-  <script>
+<script>
+/* =============================================================
+   CONFIGURATION
+   ============================================================= */
 
-    /* =====================================================
-       CONFIGURATION
-       ===================================================== */
-
-    const GITHUB_API =
-      "https://api.github.com/repos/roman-HG/prediccion-aemet-harmonie-arome/contents/tiff";
-
-
-    /* =====================================================
-       MAP
-       ===================================================== */
-
-    const map =
-      L.map("map",{zoomControl: false}).setView(
-        [40.0, -3.7],
-        6
-      );
-	  L.control.zoom({position:"bottomright"}).addTo(map);
+const GITHUB_API =
+    "https://api.github.com/repos/roman-HG/prediccion-aemet-harmonie-arome/contents/tiff";
 
 
-    L.tileLayer(
-      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-      {
-        attribution:
-          "&copy; OpenStreetMap contributors"
-      }
-    ).addTo(map);
+/* =============================================================
+   AEMET PRODUCT DEFINITIONS
+   ============================================================= */
+
+const PRODUCT_DEFINITIONS = {
+
+    "_11.tif": {
+        name: "Temperatura",
+        unit: "°C",
+
+        R: [
+            122,150,181,209,138,166,196,224,
+            255,26,26,28,28,31,0,10,
+            20,33,102,204,255,255,255,255,
+            255,255,255,232,209,178,161,138
+        ],
+
+        G: [
+            56,48,41,33,43,97,148,201,
+            255,26,54,84,112,143,237,217,
+            196,178,255,255,255,222,191,158,
+            128,0,51,51,51,51,54,54
+        ],
+
+        B: [
+            140,140,140,143,227,232,240,247,
+            255,112,148,184,219,255,237,214,
+            191,171,102,0,0,0,0,0,
+            0,0,178,145,112,79,46,15
+        ],
+
+        v: [
+            -27.5,-22.5,-17.5,-12.5,-9,-7,-5,-3,
+            -1,1,3,5,7,9,11,13,
+            15,17,19,21,23,25,27,29,
+            31,33,35,37,39,41,43,44
+        ]
+    },
 
 
-    /* =====================================================
-       DOM
-       ===================================================== */
+    "_32.tif": {
+        name: "Viento",
+        unit: "km/h",
 
-    const tiffSelect =
-      document.getElementById(
-        "tiffSelect"
-      );
-  const downloadButton = document.getElementById("downloadButton");
-  
+        R: [
+            216,175,102,80,168,217,255,
+            255,255,255,255,153,153
+        ],
 
-    const status =
-      document.getElementById(
-        "status"
-      );
+        G: [
+            250,249,246,249,244,242,201,
+            138,105,89,120,102,51
+        ],
 
-    const variableElement =
-      document.getElementById(
-        "variable"
-      );
+        B: [
+            248,246,236,183,1,0,11,
+            23,31,89,212,255,204
+        ],
 
-    const pixelValueBox =
-      document.getElementById(
-        "pixelValueBox"
-      );
-
-    const colorRampElement =
-      document.getElementById(
-        "colorRamp"
-      );
-
-    const rampLabelsElement =
-      document.getElementById(
-        "rampLabels"
-      );
+        v: [
+            5,15,25,35,45,55,65,
+            75,85,95,105,115,120
+        ]
+    },
 
 
-    /* =====================================================
-       STATE
-       ===================================================== */
+    "_61_1HH.tif": {
+        name: "Lluvia 1h",
+        unit: "mm",
 
-    let rasterLayer = null;
+        R: [
+            19,176,51,0,0,0,128,191,
+            255,255,255,255,204,219,236
+        ],
 
-    let currentGeoRaster = null;
+        G: [
+            49,224,245,204,178,153,204,230,
+            255,186,122,61,84,141,200
+        ],
 
-    let currentColorFunction = null;
+        B: [
+            52,230,222,128,64,0,0,0,
+            0,15,8,3,83,140,200
+        ],
 
-
-    /* =====================================================
-       PRECIPITATION RAMP
-       ===================================================== */
-
-    const precipRamp = {
-
-      R: [
-        19, 176, 51, 0, 0, 0,
-        128, 191, 255, 255, 255,
-        255, 204, 219, 236
-      ],
-
-      G: [
-        49, 224, 245, 204, 178, 153,
-        204, 230, 255, 186, 122, 61,
-        84, 141, 200
-      ],
-
-      B: [
-        52, 230, 222, 128, 64, 0,
-        0, 0, 0, 15, 8, 3,
-        83, 140, 200
-      ],
-
-      value: [
-        0,
-        0.75,
-        1.5,
-        3.5,
-        7.5,
-        15,
-        25,
-        35,
-        50,
-        70,
-        90,
-        110,
-        150,
-        215,
-        275
-      ]
-    };
+        v: [
+            0,0.75,1.5,3.5,7.5,15,25,35,
+            50,70,90,110,150,215,275
+        ]
+    },
 
 
-    /* =====================================================
-       TEMPERATURE RAMP
-       ===================================================== */
+    "_61_3HH.tif": {
+        name: "Lluvia 3h",
+        unit: "mm",
 
-    const temperatureRamp = [
+        R: [
+            19,176,51,0,0,0,128,191,
+            255,255,255,255,204,219,236
+        ],
 
-      [-27.5, "#7a388c"],
-      [-22.5, "#96308c"],
-      [-17.5, "#b5298c"],
-      [-12.5, "#d1218f"],
-      [-9, "#8a2be3"],
-      [-7, "#a661e8"],
-      [-5, "#c494f0"],
-      [-3, "#e0c9f7"],
-      [-1, "#ffffff"],
-      [1, "#1a1a70"],
-      [3, "#1a3694"],
-      [5, "#1c54b8"],
-      [7, "#1c70db"],
-      [9, "#1f8fff"],
-      [11, "#00eded"],
-      [13, "#0ad9d6"],
-      [15, "#14c4bf"],
-      [17, "#21b2ab"],
-      [19, "#66ff66"],
-      [21, "#ccff00"],
-      [23, "#ffff00"],
-      [25, "#ffde00"],
-      [27, "#ffbf00"],
-      [29, "#ff9e00"],
-      [31, "#ff8000"],
-      [33, "#ff0000"],
-      [35, "#ff33b2"],
-      [37, "#e83391"],
-      [39, "#d13370"],
-      [41, "#b2334f"],
-      [43, "#a1362e"],
-      [44, "#8a360f"]
-    ];
+        G: [
+            49,224,245,204,178,153,204,230,
+            255,186,122,61,84,141,200
+        ],
+
+        B: [
+            52,230,222,128,64,0,0,0,
+            0,15,8,3,83,140,200
+        ],
+
+        v: [
+            0,0.75,1.5,3.5,7.5,15,25,35,
+            50,70,90,110,150,215,275
+        ]
+    },
 
 
-    /* =====================================================
-       RGB → HEX
-       ===================================================== */
+    "_61_6HH.tif": {
+        name: "Lluvia 6h",
+        unit: "mm",
 
-    function rgbToHex(
-      r,
-      g,
-      b
-    ) {
+        R: [
+            19,176,51,0,0,0,128,191,
+            255,255,255,255,204,219,236
+        ],
 
-      return "#" +
-        [r, g, b]
-          .map(
-            v =>
-              v
-                .toString(16)
-                .padStart(2, "0")
-          )
-          .join("");
+        G: [
+            49,224,245,204,178,153,204,230,
+            255,186,122,61,84,141,200
+        ],
+
+        B: [
+            52,230,222,128,64,0,0,0,
+            0,15,8,3,83,140,200
+        ],
+
+        v: [
+            0,0.75,1.5,3.5,7.5,15,25,35,
+            50,70,90,110,150,215,275
+        ]
+    },
+
+
+    "_71.tif": {
+        name: "Nubosidad",
+        unit: "%",
+
+        R: [
+            255,217,229,196,160,114,76,33,12
+        ],
+
+        G: [
+            255,217,235,214,196,169,141,115,41
+        ],
+
+        B: [
+            255,219,250,229,211,195,178,184,74
+        ],
+
+        v: [
+            15,25,35,45,55,65,75,85,90
+        ]
+    },
+
+
+    "_207.tif": {
+        name: "Rayos",
+        unit: "km⁻²",
+
+        R: [
+            53,47,41,35,63,147,233,232,229,224,191
+        ],
+
+        G: [
+            151,231,247,244,241,238,235,144,48,0,0
+        ],
+
+        B: [
+            253,250,180,90,30,24,19,14,9,147,61
+        ],
+
+        v: [
+            0.0105,0.03,0.05,0.07,0.09,0.11,
+            0.13,0.15,0.17,0.19,0.2
+        ]
+    },
+
+
+    "_207_3HH.tif": {
+        name: "Rayos 3h",
+        unit: "km⁻²",
+
+        R: [
+            53,47,41,35,63,147,233,232,229,224,191
+        ],
+
+        G: [
+            151,231,247,244,241,238,235,144,48,0,0
+        ],
+
+        B: [
+            253,250,180,90,30,24,19,14,9,147,61
+        ],
+
+        v: [
+            0.0105,0.03,0.05,0.07,0.09,0.11,
+            0.13,0.15,0.17,0.19,0.2
+        ]
+    },
+
+
+    "_228.tif": {
+        name: "Rachas",
+        unit: "km/h",
+
+        R: [
+            217,176,102,79,168,217,255,
+            255,255,255,255,153,153,171,190
+        ],
+
+        G: [
+            248,250,247,250,245,242,201,
+            138,105,120,102,51,26,0
+        ],
+
+        B: [
+            248,247,237,184,0,0,10,
+            23,31,89,212,255,204,133,61
+        ],
+
+        v: [
+            5,15,25,35,45,55,65,75,
+            85,95,105,115,125,135,140
+        ]
+    },
+
+
+    "_228_3HH.tif": {
+        name: "Rachas 3h",
+        unit: "km/h",
+
+        R: [
+            217,176,102,79,168,217,255,
+            255,255,255,255,153,153,171,190
+        ],
+
+        G: [
+            248,250,247,250,245,242,201,
+            138,105,120,102,51,26,0
+        ],
+
+        B: [
+            248,247,237,184,0,0,10,
+            23,31,89,212,255,204,133,61
+        ],
+
+        v: [
+            5,15,25,35,45,55,65,75,
+            85,95,105,115,125,135,140
+        ]
+    }
+};
+
+
+/* =============================================================
+   PRODUCT CODE ORDER
+   ============================================================= */
+
+const PRODUCT_CODES = [
+    "_61_1HH.tif",
+    "_61_3HH.tif",
+    "_61_6HH.tif",
+    "_207_3HH.tif",
+    "_228_3HH.tif",
+    "_11.tif",
+    "_32.tif",
+    "_71.tif",
+    "_207.tif",
+    "_228.tif"
+];
+
+
+/* =============================================================
+   GLOBAL STATE
+   ============================================================= */
+
+let map;
+let geoTiffLayer = null;
+
+let tiffFiles = [];
+let filesByVariable = {};
+
+let selectedVariable = null;
+let selectedFile = null;
+
+let currentImage = null;
+let currentRaster = null;
+let currentRasterWidth = 0;
+let currentRasterHeight = 0;
+let currentBBox = null;
+
+
+/* =============================================================
+   MAP
+   ============================================================= */
+
+map = L.map("map").setView(
+    [40.25, -3.7],
+    6
+);
+
+
+L.tileLayer(
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {
+        maxZoom: 18,
+        attribution: "&copy; OpenStreetMap contributors"
+    }
+).addTo(map);
+
+
+/* =============================================================
+   PRODUCT DETECTION
+   ============================================================= */
+
+function getProductCode(filename) {
+
+    if (!filename) {
+        return null;
     }
 
+    const name =
+        filename.toLowerCase().trim();
 
-    /* =====================================================
-       PRECIPITATION COLOR
-       ===================================================== */
+    const base =
+        name.replace(
+            /\.(tif|tiff)$/i,
+            ""
+        );
 
-    function precipitationColor(
-      values
-    ) {
+    for (const code of PRODUCT_CODES) {
 
-      const value =
-        values[0];
-
-
-      if (
-        value == null ||
-        !Number.isFinite(value)
-      ) {
-
-        return null;
-      }
-
-
-      for (
-        let i = 0;
-        i < precipRamp.value.length;
-        i++
-      ) {
+        const cleanCode =
+            code
+                .toLowerCase()
+                .replace(
+                    /\.tif$/i,
+                    ""
+                );
 
         if (
-          value <=
-          precipRamp.value[i]
+            base.endsWith(cleanCode)
         ) {
-
-          return rgbToHex(
-            precipRamp.R[i],
-            precipRamp.G[i],
-            precipRamp.B[i]
-          );
+            return code;
         }
-      }
-
-
-      const last =
-        precipRamp.value.length - 1;
-
-
-      return rgbToHex(
-        precipRamp.R[last],
-        precipRamp.G[last],
-        precipRamp.B[last]
-      );
     }
 
-
-    /* =====================================================
-       TEMPERATURE COLOR
-       ===================================================== */
-
-    function temperatureColor(
-      values
-    ) {
-
-      const value =
-        values[0];
-
-
-      if (
-        value == null ||
-        !Number.isFinite(value)
-      ) {
-
-        return null;
-      }
-
-
-      if (
-        value <
-        temperatureRamp[0][0]
-      ) {
-
-        return temperatureRamp[0][1];
-      }
-
-
-      let color =
-        temperatureRamp[0][1];
-
-
-      for (
-        const [
-          threshold,
-          thresholdColor
-        ] of temperatureRamp
-      ) {
-
-        if (
-          value >= threshold
-        ) {
-
-          color =
-            thresholdColor;
-
-        } else {
-
-          break;
-        }
-      }
-
-
-      return color;
-    }
-
-
-    /* =====================================================
-       VARIABLE
-       ===================================================== */
-
-    function getVariable(
-      filename
-    ) {
-
-      if (
-        filename.includes(
-          "_61_1HH"
-        )
-      ) {
-
-        return "Precipitation";
-      }
-
-
-      if (
-        filename.includes("_11")
-      ) {
-
-        return "Temperature";
-      }
-
-
-      return "Unknown";
-    }
-
-
-    /* =====================================================
-       COLOR FUNCTION
-       ===================================================== */
-
-    function getColorFunction(
-      filename
-    ) {
-
-      if (
-        filename.includes(
-          "_61_1HH"
-        )
-      ) {
-
-        return precipitationColor;
-      }
-
-
-      if (
-        filename.includes("_11")
-      ) {
-
-        return temperatureColor;
-      }
-
-
-      return null;
-    }
-
-
-    /* =====================================================
-       GET LEGEND DATA
-       ===================================================== */
-
-    function getRamp(
-      filename
-    ) {
-
-      if (
-        filename.includes(
-          "_61_1HH"
-        )
-      ) {
-
-        return {
-
-          values:
-            precipRamp.value,
-
-          colors:
-            precipRamp.value.map(
-              (_, i) =>
-                rgbToHex(
-                  precipRamp.R[i],
-                  precipRamp.G[i],
-                  precipRamp.B[i]
-                )
-            )
-        };
-      }
-
-
-      if (
-        filename.includes("_11")
-      ) {
-
-        return {
-
-          values:
-            temperatureRamp.map(
-              item => item[0]
-            ),
-
-          colors:
-            temperatureRamp.map(
-              item => item[1]
-            )
-        };
-      }
-
-
-      return null;
-    }
-
-
-    /* =====================================================
-       UPDATE LEGEND
-       ===================================================== */
-function updateLegend(filename) {
-    const ramp = getRamp(filename);
-
-    colorRampElement.innerHTML = "";
-    rampLabelsElement.innerHTML = "";
-
-    if (!ramp) {
-        variableElement.textContent = "Unknown";
-        return;
-    }
-
-    variableElement.textContent = getVariable(filename);
-
-    const values = ramp.values;
-    const colors = ramp.colors;
-
-    // Equal-height color segments
-    for (let i = colors.length - 1; i >= 0; i--) {
-        const segment = document.createElement("div");
-
-        segment.className = "rampSegment";
-        segment.style.backgroundColor = colors[i];
-
-        // Every color has exactly the same height
-        segment.style.flex = "1";
-
-        colorRampElement.appendChild(segment);
-    }
-
-    // Equally spaced labels
-values.forEach((value, i) => {
-    const label = document.createElement("div");
-
-    label.className = "rampLabel";
-
-    // Reverse labels so highest value is at the top
-    const position = 100 - (i / (values.length - 1)) * 100;
-
-    label.style.top = position + "%";
-    label.textContent = value;
-
-    rampLabelsElement.appendChild(label);
-});
+    return null;
 }
 
 
-    /* =====================================================
-       CONTRAST COLOR
-       ===================================================== */
+/* =============================================================
+   DATE PARSING
+   ============================================================= */
 
-    function getContrastColor(
-      hex
-    ) {
+function parseDateFromFilename(filename) {
 
-      if (!hex) {
-        return "#000000";
-      }
-
-
-      const r =
-        parseInt(
-          hex.substring(1, 3),
-          16
-        );
-
-      const g =
-        parseInt(
-          hex.substring(3, 5),
-          16
-        );
-
-      const b =
-        parseInt(
-          hex.substring(5, 7),
-          16
-        );
-
-
-      const luminance =
-        0.299 * r +
-        0.587 * g +
-        0.114 * b;
-
-
-      return luminance > 150
-        ? "#000000"
-        : "#ffffff";
+    if (!filename) {
+        return null;
     }
 
-
-    /* =====================================================
-       UPDATE PIXEL VALUE
-       ===================================================== */
-
-    function updatePixelValue(
-      value,
-      color
-    ) {
-
-      if (
-        value == null ||
-        !Number.isFinite(value)
-      ) {
-
-        pixelValueBox.textContent =
-          "—";
-
-        pixelValueBox.style.backgroundColor =
-          "#ffffff";
-
-        pixelValueBox.style.color =
-          "#000000";
-
-        return;
-      }
-
-
-      /*
-       * Actual TIFF value.
-       * No normalization or scaling.
-       */
-
-      pixelValueBox.textContent =
-        Number(value).toFixed(1);
-
-
-      pixelValueBox.style.backgroundColor =
-        color || "#ffffff";
-
-
-      pixelValueBox.style.color =
-        getContrastColor(
-          color || "#ffffff"
-        );
-    }
-
-
-    /* =====================================================
-       GET RASTER VALUE
-       ===================================================== */
-
-    function getRasterValue(
-      georaster,
-      lat,
-      lng
-    ) {
-
-      const xmin =
-        georaster.xmin;
-
-      const xmax =
-        georaster.xmax;
-
-      const ymin =
-        georaster.ymin;
-
-      const ymax =
-        georaster.ymax;
-
-
-      if (
-        lng < xmin ||
-        lng > xmax ||
-        lat < ymin ||
-        lat > ymax
-      ) {
-
-        return null;
-      }
-
-
-      const x =
-        Math.floor(
-          (lng - xmin) /
-          georaster.pixelWidth
+    const isoMatch =
+        filename.match(
+            /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:[+-]\d{2}:\d{2}|Z)?)/i
         );
 
 
-      const y =
-        Math.floor(
-          (ymax - lat) /
-          georaster.pixelHeight
-        );
+    if (isoMatch) {
 
+        const date =
+            new Date(
+                isoMatch[1]
+            );
 
-      if (
-        x < 0 ||
-        x >= georaster.width ||
-        y < 0 ||
-        y >= georaster.height
-      ) {
-
-        return null;
-      }
-
-
-      const band =
-        georaster.values[0];
-
-
-      const value =
-        band[y][x];
-
-
-      if (
-        value == null ||
-        !Number.isFinite(value)
-      ) {
-
-        return null;
-      }
-
-
-      return value;
-    }
-
-
-    /* =====================================================
-       MAP MOUSEMOVE
-       ===================================================== */
-
-    map.on(
-      "mousemove",
-      function (event) {
-
-        if (!currentGeoRaster) {
-          return;
+        if (!isNaN(date.getTime())) {
+            return date;
         }
+    }
 
 
-        const value =
-          getRasterValue(
-            currentGeoRaster,
-            event.latlng.lat,
-            event.latlng.lng
-          );
-
-
-        let color =
-          null;
-
-
-        if (
-          currentColorFunction &&
-          value != null
-        ) {
-
-          color =
-            currentColorFunction([
-              value
-            ]);
-        }
-
-
-        updatePixelValue(
-          value,
-          color
+    const fallback =
+        filename.match(
+            /(\d{4})-(\d{2})-(\d{2})[T _-](\d{2})[:_-]?(\d{2})/
         );
-      }
-    );
 
 
-    /* =====================================================
-       LOAD GEOTIFF
-       ===================================================== */
-      let geojsonLayer = null;
-    async function loadGeoTiff(
-      url,
-      filename
-    ) {
+    if (fallback) {
 
-      try {
+        const date =
+            new Date(
+                Date.UTC(
+                    Number(fallback[1]),
+                    Number(fallback[2]) - 1,
+                    Number(fallback[3]),
+                    Number(fallback[4]),
+                    Number(fallback[5])
+                )
+            );
+
+
+        if (!isNaN(date.getTime())) {
+            return date;
+        }
+    }
+
+
+    const compact =
+        filename.match(
+            /(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})/
+        );
+
+
+    if (compact) {
+
+        const date =
+            new Date(
+                Date.UTC(
+                    Number(compact[1]),
+                    Number(compact[2]) - 1,
+                    Number(compact[3]),
+                    Number(compact[4]),
+                    Number(compact[5])
+                )
+            );
+
+
+        if (!isNaN(date.getTime())) {
+            return date;
+        }
+    }
+
+
+    return null;
+}
+
+
+/* =============================================================
+   DATE FORMATTING
+   ============================================================= */
+
+function formatDate(date) {
+
+    if (!date) {
+        return "Unknown";
+    }
+
+    return new Intl.DateTimeFormat(
+        undefined,
+        {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+            timeZone: "UTC"
+        }
+    ).format(date) + " UTC";
+}
+
+
+function formatHour(date) {
+
+    if (!date) {
+        return "?";
+    }
+
+    return new Intl.DateTimeFormat(
+        undefined,
+        {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+            timeZone: "UTC"
+        }
+    ).format(date);
+}
+
+
+/* =============================================================
+   LOAD FILES FROM GITHUB
+   ============================================================= */
+
+async function loadFilesFromGitHub() {
+
+    const status =
+        document.getElementById("status");
+
+    try {
 
         status.textContent =
-          "Loading " +
-          filename +
-          "...";
+            "Loading AEMET GeoTIFF files…";
 
-
-        /*
-         * Remove previous layer.
-         */
-
-        if (rasterLayer) {
-
-          map.removeLayer(
-            rasterLayer
-          );
-
-          rasterLayer = null;
-        }
-
-
-        currentGeoRaster =
-          null;
-
-
-        /*
-         * Determine variable.
-         */
-
-        currentColorFunction =
-          getColorFunction(
-            filename
-          );
-
-
-        updateLegend(
-          filename
-        );
-
-
-        /*
-         * Download TIFF.
-         */
 
         const response =
-          await fetch(url);
+            await fetch(
+                GITHUB_API,
+                {
+                    cache: "no-store"
+                }
+            );
 
 
         if (!response.ok) {
 
-          throw new Error(
-            "HTTP " +
-            response.status
-          );
-        }
-
-
-        const arrayBuffer =
-          await response.arrayBuffer();
-
-
-        /*
-         * Parse GeoTIFF.
-         */
-
-        const georaster =
-          await parseGeoraster(
-            arrayBuffer
-          );
-
-
-        currentGeoRaster =
-          georaster;
-
-
-        /*
-         * Create raster layer.
-         */
-
-        const options = {
-
-          georaster,
-
-          opacity: 0.85,
-
-          resolution: 256
-        };
-
-
-        if (
-          currentColorFunction
-        ) {
-
-          options.pixelValuesToColorFn =
-            currentColorFunction;
-        }
-
-
-        rasterLayer =
-          new GeoRasterLayer(
-            options
-          );
-
-
-        rasterLayer.addTo(
-          map
-        );
-      var layerstyle = {
-	weight: 2,
-	color: "grey",
-	dashArray: "3",
-	fillOpacity: 0,
-	};
-
-    // Remove previous GeoJSON
-    if (geojsonLayer) {
-        map.removeLayer(geojsonLayer);
-        geojsonLayer = null;
-    }
-
-      geoJsonLayer=L.geoJson(countries, {
-    name: "Countries",
-	style: layerstyle,
-	}).addTo(map);
-
-
-        /*
-         * Zoom to TIFF.
-         */
-
-        if (
-          georaster.xmin != null &&
-          georaster.xmax != null &&
-          georaster.ymin != null &&
-          georaster.ymax != null
-        ) {
-
-          map.fitBounds([
-            [
-              georaster.ymin,
-              georaster.xmin
-            ],
-            [
-              georaster.ymax,
-              georaster.xmax
-            ]
-          ]);
-        }
-
-
-        status.textContent =
-          filename;
-
-
-        updatePixelValue(
-          null,
-          null
-        );
-
-      } catch (error) {
-
-        console.error(
-          error
-        );
-
-        status.textContent =
-          "Error loading " +
-          filename +
-          ": " +
-          error.message;
-      }
-    }
-
-
-    /* =====================================================
-       LOAD FILE LIST
-       ===================================================== */
-
-    async function loadFileList() {
-
-      try {
-
-        status.textContent =
-          "Loading TIFF list...";
-
-
-        const response =
-          await fetch(
-            GITHUB_API
-          );
-
-
-        if (!response.ok) {
-
-          throw new Error(
-            "GitHub API HTTP " +
-            response.status
-          );
+            throw new Error(
+                `GitHub API returned HTTP ${response.status}`
+            );
         }
 
 
         const files =
-          await response.json();
+            await response.json();
 
 
-        const tiffFiles =
-          files.filter(
-            file =>
-              file.type === "file" &&
-              (
-                file.name
-                  .toLowerCase()
-                  .endsWith(".tif") ||
+        if (!Array.isArray(files)) {
 
-                file.name
-                  .toLowerCase()
-                  .endsWith(".tiff")
-              )
-          );
+            throw new Error(
+                "GitHub API did not return a directory listing."
+            );
+        }
 
 
-        tiffSelect.innerHTML =
-          "";
+        const tifFiles =
+            files.filter(
+                file =>
+                    file &&
+                    file.type === "file" &&
+                    /\.(tif|tiff)$/i.test(
+                        file.name || ""
+                    )
+            );
 
+
+        if (!tifFiles.length) {
+
+            throw new Error(
+                "No .tif or .tiff files were found."
+            );
+        }
+
+
+        const recognised = [];
+
+
+        for (const file of tifFiles) {
+
+            const productCode =
+                getProductCode(
+                    file.name
+                );
+
+
+            if (!productCode) {
+                continue;
+            }
+
+
+            const product =
+                PRODUCT_DEFINITIONS[
+                    productCode
+                ];
+
+
+            if (!product) {
+                continue;
+            }
+
+
+            recognised.push({
+                ...file,
+                productCode,
+                product,
+                date:
+                    parseDateFromFilename(
+                        file.name
+                    )
+            });
+        }
+
+
+        if (!recognised.length) {
+
+            throw new Error(
+                "TIFF files were found, but none matched the AEMET product codes."
+            );
+        }
+
+
+        recognised.sort(
+            (a, b) =>
+                (
+                    a.date
+                        ? a.date.getTime()
+                        : 0
+                ) -
+                (
+                    b.date
+                        ? b.date.getTime()
+                        : 0
+                )
+        );
+
+
+        tiffFiles =
+            recognised;
+
+
+        filesByVariable =
+            {};
+
+
+        for (const file of tiffFiles) {
+
+            if (
+                !filesByVariable[
+                    file.productCode
+                ]
+            ) {
+
+                filesByVariable[
+                    file.productCode
+                ] = [];
+            }
+
+
+            filesByVariable[
+                file.productCode
+            ].push(file);
+        }
+
+
+        populateVariableSelect();
+
+
+        const firstVariable =
+            Object.keys(
+                filesByVariable
+            )[0];
+
+
+        if (!firstVariable) {
+
+            throw new Error(
+                "No recognised AEMET variables are available."
+            );
+        }
+
+
+        selectedVariable =
+            firstVariable;
+
+
+        document.getElementById(
+            "variableSelect"
+        ).value =
+            firstVariable;
+
+
+        updateDateSelect();
+
+
+        const firstFile =
+            filesByVariable[
+                firstVariable
+            ][0];
+
+
+        await selectTiff(
+            firstFile
+        );
+
+
+        status.textContent =
+            `${tiffFiles.length} GeoTIFF files loaded`;
+
+    } catch (error) {
+
+        console.error(
+            "Failed to load data:",
+            error
+        );
+
+
+        status.textContent =
+            "Failed to load data: " +
+            error.message;
+    }
+}
+
+
+/* =============================================================
+   VARIABLES
+   ============================================================= */
+
+function populateVariableSelect() {
+
+    const select =
+        document.getElementById(
+            "variableSelect"
+        );
+
+
+    select.innerHTML = "";
+
+
+    const order = [
+        "_11.tif",
+        "_32.tif",
+        "_61_1HH.tif",
+        "_61_3HH.tif",
+        "_61_6HH.tif",
+        "_71.tif",
+        "_207.tif",
+        "_207_3HH.tif",
+        "_228.tif",
+        "_228_3HH.tif"
+    ];
+
+
+    for (const code of order) {
 
         if (
-          tiffFiles.length === 0
+            !filesByVariable[code]
         ) {
-
-          tiffSelect.innerHTML =
-            "<option>" +
-            "No TIFF files found" +
-            "</option>";
+            continue;
+        }
 
 
-          status.textContent =
-            "No TIFF files found.";
+        const option =
+            document.createElement(
+                "option"
+            );
 
-          return;
+
+        option.value =
+            code;
+
+
+        option.textContent =
+            PRODUCT_DEFINITIONS[
+                code
+            ].name;
+
+
+        select.appendChild(
+            option
+        );
+    }
+}
+
+
+/* =============================================================
+   DATE / HOURS
+   ============================================================= */
+
+function updateDateSelect() {
+
+    const files =
+        filesByVariable[
+            selectedVariable
+        ] || [];
+
+
+    const dateSelect =
+        document.getElementById(
+            "dateSelect"
+        );
+
+
+    dateSelect.innerHTML = "";
+
+
+    for (const file of files) {
+
+        const option =
+            document.createElement(
+                "option"
+            );
+
+
+        option.value =
+            file.name;
+
+
+        option.textContent =
+            formatDate(file.date);
+
+
+        dateSelect.appendChild(
+            option
+        );
+    }
+
+
+    buildHourTimeline(files);
+}
+
+
+function buildHourTimeline(files) {
+
+    const hours =
+        document.getElementById(
+            "hours"
+        );
+
+
+    hours.innerHTML = "";
+
+
+    files.forEach(
+        (file, index) => {
+
+            const button =
+                document.createElement(
+                    "div"
+                );
+
+
+            button.className =
+                "hour";
+
+
+            button.dataset.index =
+                index;
+
+
+            button.textContent =
+                file.date
+                    ? formatHour(file.date)
+                    : String(index + 1);
+
+
+            button.title =
+                file.date
+                    ? formatDate(file.date)
+                    : file.name;
+
+
+            button.addEventListener(
+                "click",
+                () => selectTiff(file)
+            );
+
+
+            hours.appendChild(
+                button
+            );
+        }
+    );
+
+
+    if (selectedFile) {
+
+        const index =
+            files.findIndex(
+                f =>
+                    f.name ===
+                    selectedFile.name
+            );
+
+
+        if (index >= 0) {
+            setActiveHour(index);
+        }
+    }
+}
+
+
+function setActiveHour(index) {
+
+    document
+        .querySelectorAll(".hour")
+        .forEach(
+            (element, i) => {
+
+                element.classList.toggle(
+                    "active",
+                    i === index
+                );
+            }
+        );
+
+
+    const active =
+        document.querySelector(
+            `.hour[data-index="${index}"]`
+        );
+
+
+    if (active) {
+
+        active.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest",
+            inline: "center"
+        });
+    }
+}
+
+
+/* =============================================================
+   SELECT TIFF
+   ============================================================= */
+
+async function selectTiff(file) {
+
+    if (!file) {
+        return;
+    }
+
+
+    selectedFile =
+        file;
+
+
+    selectedVariable =
+        file.productCode;
+
+
+    document.getElementById(
+        "variableSelect"
+    ).value =
+        selectedVariable;
+
+
+    document.getElementById(
+        "dateSelect"
+    ).value =
+        file.name;
+
+
+    const files =
+        filesByVariable[
+            selectedVariable
+        ] || [];
+
+
+    const index =
+        files.findIndex(
+            f =>
+                f.name ===
+                file.name
+        );
+
+
+    if (index >= 0) {
+        setActiveHour(index);
+    }
+
+
+    updateLegend(
+        file.product
+    );
+
+
+    document.getElementById(
+        "status"
+    ).textContent =
+        `Loading ${file.name}…`;
+
+
+    await loadGeoTiff(file);
+}
+
+
+/* =============================================================
+   LOAD GEOTIFF
+   ============================================================= */
+
+async function loadGeoTiff(file) {
+
+    try {
+
+        const response =
+            await fetch(
+                file.download_url,
+                {
+                    cache: "no-store"
+                }
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                `Unable to download TIFF: HTTP ${response.status}`
+            );
+        }
+
+
+        const arrayBuffer =
+            await response.arrayBuffer();
+
+
+        const tiff =
+            await GeoTIFF.fromArrayBuffer(
+                arrayBuffer
+            );
+
+
+        const image =
+            await tiff.getImage();
+
+
+        currentImage =
+            image;
+
+
+        const rasters =
+            await image.readRasters({
+                interleave: true
+            });
+
+
+        currentRaster =
+            rasters;
+
+
+        currentRasterWidth =
+            image.getWidth();
+
+
+        currentRasterHeight =
+            image.getHeight();
+
+
+        currentBBox =
+            image.getBoundingBox();
+
+
+        const bounds = [
+            [
+                currentBBox[1],
+                currentBBox[0]
+            ],
+            [
+                currentBBox[3],
+                currentBBox[2]
+            ]
+        ];
+
+
+        if (geoTiffLayer) {
+
+            map.removeLayer(
+                geoTiffLayer
+            );
+
+            geoTiffLayer = null;
         }
 
 
         /*
-         * Add TIFF files.
+         * =======================================================
+         * CORRECT Y-AXIS HANDLING
+         * =======================================================
+         *
+         * GeoTIFF readRasters() gives us rows in raster order.
+         *
+         * We DO NOT flip the rows here.
+         *
+         * The previous version used:
+         *
+         *   destinationY = height - 1 - y
+         *
+         * which inverted the weather field.
+         *
+         * Instead, write each raster row directly to the
+         * corresponding canvas row.
+         *
+         * Leaflet's image overlay is then positioned using the
+         * GeoTIFF geographic bounding box.
+         * =======================================================
          */
 
-        tiffFiles.forEach(
-          file => {
 
-const option = document.createElement("option");
+        const canvas =
+            document.createElement(
+                "canvas"
+            );
 
-option.value = file.download_url;
-option.textContent = file.name;
-option.dataset.filename = file.name;
 
-tiffSelect.appendChild(option);
-          }
-        );
+        canvas.width =
+            currentRasterWidth;
+
+
+        canvas.height =
+            currentRasterHeight;
+
+
+        const ctx =
+            canvas.getContext(
+                "2d"
+            );
+
+
+        const imageData =
+            ctx.createImageData(
+                currentRasterWidth,
+                currentRasterHeight
+            );
+
+
+        const pixels =
+            imageData.data;
+
+
+        let noData = null;
+
+
+        try {
+
+            noData =
+                image.getGDALNoData();
+
+        } catch (e) {
+
+            noData = null;
+        }
+
+
+        const product =
+            file.product;
 
 
         /*
-         * Load first TIFF.
+         * Write raster directly to canvas.
+         * NO Y FLIP.
          */
 
-        const firstOption =
-          tiffSelect.options[0];
+        for (
+            let y = 0;
+            y < currentRasterHeight;
+            y++
+        ) {
+
+            for (
+                let x = 0;
+                x < currentRasterWidth;
+                x++
+            ) {
+
+                const sourceIndex =
+                    y *
+                    currentRasterWidth +
+                    x;
 
 
-        loadGeoTiff(
-          firstOption.value,
-          firstOption.dataset.filename
+                const value =
+                    Number(
+                        currentRaster[
+                            sourceIndex
+                        ]
+                    );
+
+
+                const destinationIndex =
+                    (
+                        y *
+                        currentRasterWidth +
+                        x
+                    ) * 4;
+
+
+                if (
+                    !Number.isFinite(value) ||
+                    (
+                        noData !== null &&
+                        Number(value) ===
+                        Number(noData)
+                    )
+                ) {
+
+                    pixels[
+                        destinationIndex
+                    ] = 0;
+
+                    pixels[
+                        destinationIndex + 1
+                    ] = 0;
+
+                    pixels[
+                        destinationIndex + 2
+                    ] = 0;
+
+                    pixels[
+                        destinationIndex + 3
+                    ] = 0;
+
+                    continue;
+                }
+
+
+                const color =
+                    colorForValue(
+                        value,
+                        product
+                    );
+
+
+                pixels[
+                    destinationIndex
+                ] =
+                    color[0];
+
+
+                pixels[
+                    destinationIndex + 1
+                ] =
+                    color[1];
+
+
+                pixels[
+                    destinationIndex + 2
+                ] =
+                    color[2];
+
+
+                pixels[
+                    destinationIndex + 3
+                ] =
+                    255;
+            }
+        }
+
+
+        ctx.putImageData(
+            imageData,
+            0,
+            0
         );
 
-      } catch (error) {
+
+        geoTiffLayer =
+            L.imageOverlay(
+                canvas.toDataURL(),
+                bounds,
+                {
+                    opacity: 0.82,
+                    interactive: false
+                }
+            );
+
+
+        geoTiffLayer.addTo(map);
+
+
+        if (!map._aemetInitialFitDone) {
+
+            map.fitBounds(
+                bounds,
+                {
+                    padding: [20, 20]
+                }
+            );
+
+
+            map._aemetInitialFitDone =
+                true;
+        }
+
+
+        document.getElementById(
+            "status"
+        ).textContent =
+            `${product.name} · ${
+                file.date
+                    ? formatDate(file.date)
+                    : file.name
+            }`;
+
+
+    } catch (error) {
 
         console.error(
-          error
+            "GeoTIFF loading error:",
+            error
         );
 
-        status.textContent =
-          "Error loading TIFF list: " +
-          error.message;
-      }
+
+        document.getElementById(
+            "status"
+        ).textContent =
+            "Failed to load GeoTIFF: " +
+            error.message;
+    }
+}
+
+
+/* =============================================================
+   COLOUR
+   ============================================================= */
+
+function colorForValue(value, product) {
+
+    const v =
+        product.v;
+
+    const R =
+        product.R;
+
+    const G =
+        product.G;
+
+    const B =
+        product.B;
+
+
+    const count =
+        Math.min(
+            v.length,
+            R.length,
+            G.length,
+            B.length
+        );
+
+
+    if (!count) {
+        return [0, 0, 0];
     }
 
 
-    /* =====================================================
-       SELECT CHANGE
-       ===================================================== */
+    if (value <= v[0]) {
+
+        return [
+            R[0],
+            G[0],
+            B[0]
+        ];
+    }
 
 
-tiffSelect.addEventListener("change", function () {
+    if (
+        value >=
+        v[count - 1]
+    ) {
 
-    const option = this.options[this.selectedIndex];
+        return [
+            R[count - 1],
+            G[count - 1],
+            B[count - 1]
+        ];
+    }
 
-    if (!option || !option.value) {
-        downloadButton.href = "#";
-        downloadButton.removeAttribute("download");
+
+    for (
+        let i = 0;
+        i < count - 1;
+        i++
+    ) {
+
+        if (
+            value >= v[i] &&
+            value <= v[i + 1]
+        ) {
+
+            const range =
+                v[i + 1] -
+                v[i];
+
+
+            const t =
+                range === 0
+                    ? 0
+                    : (
+                        (value - v[i]) /
+                        range
+                    );
+
+
+            return [
+                Math.round(
+                    R[i] +
+                    (R[i + 1] -
+                     R[i]) * t
+                ),
+
+                Math.round(
+                    G[i] +
+                    (G[i + 1] -
+                     G[i]) * t
+                ),
+
+                Math.round(
+                    B[i] +
+                    (B[i + 1] -
+                     B[i]) * t
+                )
+            ];
+        }
+    }
+
+
+    return [
+        R[count - 1],
+        G[count - 1],
+        B[count - 1]
+    ];
+}
+
+
+/* =============================================================
+   LEGEND
+   ============================================================= */
+
+function updateLegend(product) {
+
+    if (!product) {
         return;
     }
 
-    const url = option.value;
-    const filename = option.dataset.filename;
 
-    // Update download button
-    downloadButton.href = url;
-    downloadButton.download = filename;
-
-    // Load selected TIFF
-    loadGeoTiff(url, filename);
-});
+    document.getElementById(
+        "legendTitle"
+    ).textContent =
+        `${product.name} (${product.unit})`;
 
 
-    /* =====================================================
-       START
-       ===================================================== */
+    const count =
+        Math.min(
+            product.v.length,
+            product.R.length,
+            product.G.length,
+            product.B.length
+        );
 
-    loadFileList();
 
-  </script>
+    if (!count) {
+        return;
+    }
+
+
+    const min =
+        product.v[0];
+
+
+    const max =
+        product.v[count - 1];
+
+
+    const stops = [];
+
+
+    for (
+        let i = 0;
+        i < count;
+        i++
+    ) {
+
+        const percentage =
+            max === min
+                ? 0
+                : (
+                    (product.v[i] - min) /
+                    (max - min)
+                ) * 100;
+
+
+        stops.push(
+            `rgb(${product.R[i]}, ${product.G[i]}, ${product.B[i]}) ${percentage}%`
+        );
+    }
+
+
+    document.getElementById(
+        "legendGradient"
+    ).style.background =
+        `linear-gradient(to right, ${stops.join(", ")})`;
+
+
+    document.getElementById(
+        "legendMin"
+    ).textContent =
+        `${product.v[0]} ${product.unit}`;
+
+
+    document.getElementById(
+        "legendMax"
+    ).textContent =
+        `${product.v[count - 1]} ${product.unit}`;
+}
+
+
+/* =============================================================
+   PIXEL INSPECTION
+   ============================================================= */
+
+map.on(
+    "mousemove",
+    function(event) {
+
+        if (
+            !currentImage ||
+            !currentRaster ||
+            !currentBBox
+        ) {
+            return;
+        }
+
+
+        const lat =
+            event.latlng.lat;
+
+
+        const lon =
+            event.latlng.lng;
+
+
+        const minX =
+            currentBBox[0];
+
+
+        const minY =
+            currentBBox[1];
+
+
+        const maxX =
+            currentBBox[2];
+
+
+        const maxY =
+            currentBBox[3];
+
+
+        if (
+            lon < minX ||
+            lon > maxX ||
+            lat < minY ||
+            lat > maxY
+        ) {
+            return;
+        }
+
+
+        const x =
+            Math.floor(
+                (
+                    (lon - minX) /
+                    (maxX - minX)
+                ) *
+                currentRasterWidth
+            );
+
+
+        /*
+         * IMPORTANT:
+         *
+         * The geographic Y coordinate is converted to the
+         * raster row using the same orientation as the
+         * rendered canvas.
+         *
+         * The top of the geographic bounding box corresponds
+         * to raster row 0.
+         */
+
+        const y =
+            Math.floor(
+                (
+                    (maxY - lat) /
+                    (maxY - minY)
+                ) *
+                currentRasterHeight
+            );
+
+
+        if (
+            x < 0 ||
+            x >= currentRasterWidth ||
+            y < 0 ||
+            y >= currentRasterHeight
+        ) {
+            return;
+        }
+
+
+        const index =
+            y *
+            currentRasterWidth +
+            x;
+
+
+        const value =
+            Number(
+                currentRaster[index]
+            );
+
+
+        const product =
+            selectedFile
+                ? selectedFile.product
+                : null;
+
+
+        if (
+            !product ||
+            !Number.isFinite(value)
+        ) {
+
+            document.getElementById(
+                "pixelValue"
+            ).textContent =
+                "No data";
+
+            return;
+        }
+
+
+        document.getElementById(
+            "pixelValue"
+        ).textContent =
+            `${product.name}: ${formatValue(value)} ${product.unit}`;
+    }
+);
+
+
+/* =============================================================
+   FORMAT VALUE
+   ============================================================= */
+
+function formatValue(value) {
+
+    if (!Number.isFinite(value)) {
+        return "—";
+    }
+
+
+    if (Math.abs(value) < 1) {
+        return value.toFixed(3);
+    }
+
+
+    if (Math.abs(value) < 10) {
+        return value.toFixed(2);
+    }
+
+
+    return value.toFixed(1);
+}
+
+
+/* =============================================================
+   VARIABLE CHANGE
+   ============================================================= */
+
+document.getElementById(
+    "variableSelect"
+).addEventListener(
+    "change",
+    async function() {
+
+        selectedVariable =
+            this.value;
+
+
+        updateDateSelect();
+
+
+        const files =
+            filesByVariable[
+                selectedVariable
+            ] || [];
+
+
+        if (files.length) {
+
+            await selectTiff(
+                files[0]
+            );
+        }
+    }
+);
+
+
+/* =============================================================
+   DATE SELECT
+   ============================================================= */
+
+document.getElementById(
+    "dateSelect"
+).addEventListener(
+    "change",
+    async function() {
+
+        const files =
+            filesByVariable[
+                selectedVariable
+            ] || [];
+
+
+        const file =
+            files.find(
+                f =>
+                    f.name ===
+                    this.value
+            );
+
+
+        if (file) {
+            await selectTiff(file);
+        }
+    }
+);
+
+
+/* =============================================================
+   PREVIOUS HOUR
+   ============================================================= */
+
+document.getElementById(
+    "prevHour"
+).addEventListener(
+    "click",
+    async function() {
+
+        const files =
+            filesByVariable[
+                selectedVariable
+            ] || [];
+
+
+        if (
+            !selectedFile ||
+            !files.length
+        ) {
+            return;
+        }
+
+
+        let index =
+            files.findIndex(
+                f =>
+                    f.name ===
+                    selectedFile.name
+            );
+
+
+        index =
+            Math.max(
+                0,
+                index - 1
+            );
+
+
+        await selectTiff(
+            files[index]
+        );
+    }
+);
+
+
+/* =============================================================
+   NEXT HOUR
+   ============================================================= */
+
+document.getElementById(
+    "nextHour"
+).addEventListener(
+    "click",
+    async function() {
+
+        const files =
+            filesByVariable[
+                selectedVariable
+            ] || [];
+
+
+        if (
+            !selectedFile ||
+            !files.length
+        ) {
+            return;
+        }
+
+
+        let index =
+            files.findIndex(
+                f =>
+                    f.name ===
+                    selectedFile.name
+            );
+
+
+        index =
+            Math.min(
+                files.length - 1,
+                index + 1
+            );
+
+
+        await selectTiff(
+            files[index]
+        );
+    }
+);
+
+
+/* =============================================================
+   KEYBOARD
+   ============================================================= */
+
+document.addEventListener(
+    "keydown",
+    async function(event) {
+
+        if (
+            event.target.tagName === "SELECT" ||
+            event.target.tagName === "INPUT"
+        ) {
+            return;
+        }
+
+
+        const files =
+            filesByVariable[
+                selectedVariable
+            ] || [];
+
+
+        if (
+            !files.length ||
+            !selectedFile
+        ) {
+            return;
+        }
+
+
+        let index =
+            files.findIndex(
+                f =>
+                    f.name ===
+                    selectedFile.name
+            );
+
+
+        if (
+            event.key === "ArrowLeft" ||
+            event.key === "ArrowUp"
+        ) {
+
+            event.preventDefault();
+
+            index =
+                Math.max(
+                    0,
+                    index - 1
+                );
+
+        } else if (
+            event.key === "ArrowRight" ||
+            event.key === "ArrowDown"
+        ) {
+
+            event.preventDefault();
+
+            index =
+                Math.min(
+                    files.length - 1,
+                    index + 1
+                );
+
+        } else if (
+            event.key === "Home"
+        ) {
+
+            event.preventDefault();
+
+            index = 0;
+
+        } else if (
+            event.key === "End"
+        ) {
+
+            event.preventDefault();
+
+            index =
+                files.length - 1;
+
+        } else if (
+            event.key === "PageUp"
+        ) {
+
+            event.preventDefault();
+
+            index =
+                Math.max(
+                    0,
+                    index - 6
+                );
+
+        } else if (
+            event.key === "PageDown"
+        ) {
+
+            event.preventDefault();
+
+            index =
+                Math.min(
+                    files.length - 1,
+                    index + 6
+                );
+
+        } else {
+
+            return;
+        }
+
+
+        await selectTiff(
+            files[index]
+        );
+    }
+);
+
+
+/* =============================================================
+   TIMELINE WHEEL
+   ============================================================= */
+
+document.getElementById(
+    "hoursViewport"
+).addEventListener(
+    "wheel",
+    function(event) {
+
+        if (
+            Math.abs(event.deltaY) >
+            Math.abs(event.deltaX)
+        ) {
+
+            event.preventDefault();
+
+            this.scrollLeft +=
+                event.deltaY;
+        }
+    },
+    {
+        passive: false
+    }
+);
+
+
+/* =============================================================
+   TIMELINE DRAG
+   ============================================================= */
+
+const hoursViewport =
+    document.getElementById(
+        "hoursViewport"
+    );
+
+
+let isDragging = false;
+let dragStartX = 0;
+let dragScrollLeft = 0;
+
+
+hoursViewport.addEventListener(
+    "pointerdown",
+    function(event) {
+
+        isDragging = true;
+
+        this.classList.add(
+            "dragging"
+        );
+
+        dragStartX =
+            event.clientX;
+
+        dragScrollLeft =
+            this.scrollLeft;
+
+        this.setPointerCapture(
+            event.pointerId
+        );
+    }
+);
+
+
+hoursViewport.addEventListener(
+    "pointermove",
+    function(event) {
+
+        if (!isDragging) {
+            return;
+        }
+
+
+        const dx =
+            event.clientX -
+            dragStartX;
+
+
+        this.scrollLeft =
+            dragScrollLeft - dx;
+    }
+);
+
+
+hoursViewport.addEventListener(
+    "pointerup",
+    function() {
+
+        isDragging = false;
+
+        this.classList.remove(
+            "dragging"
+        );
+    }
+);
+
+
+hoursViewport.addEventListener(
+    "pointercancel",
+    function() {
+
+        isDragging = false;
+
+        this.classList.remove(
+            "dragging"
+        );
+    }
+);
+
+
+/* =============================================================
+   DOWNLOAD
+   ============================================================= */
+
+document.getElementById(
+    "downloadButton"
+).addEventListener(
+    "click",
+    function() {
+
+        if (
+            !selectedFile ||
+            !selectedFile.download_url
+        ) {
+            return;
+        }
+
+
+        const link =
+            document.createElement(
+                "a"
+            );
+
+
+        link.href =
+            selectedFile.download_url;
+
+
+        link.download =
+            selectedFile.name;
+
+
+        document.body.appendChild(
+            link
+        );
+
+
+        link.click();
+
+
+        link.remove();
+    }
+);
+
+
+/* =============================================================
+   GITHUB
+   ============================================================= */
+
+document.getElementById(
+    "githubButton"
+).addEventListener(
+    "click",
+    function() {
+
+        window.open(
+            "https://github.com/roman-HG/prediccion-aemet-harmonie-arome/tree/main/tiff",
+            "_blank"
+        );
+    }
+);
+
+
+/* =============================================================
+   START
+   ============================================================= */
+
+loadFilesFromGitHub();
+
+</script>
 
 </body>
 </html>
