@@ -2,236 +2,223 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>AEMET HARMONIE-AROME Viewer</title>
 
-<link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-/>
+<link rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/proj4@2.10.0/dist/proj4.js"></script>
+<script src="https://unpkg.com/georaster"></script>
+<script src="https://unpkg.com/georaster-layer-for-leaflet@4.1.2/dist/georaster-layer-for-leaflet.min.js"></script>
 
 <style>
-    html,
-    body {
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        font-family: Arial, Helvetica, sans-serif;
+html,body{
+    margin:0;
+    padding:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    font-family:Arial,sans-serif;
+    background:#111;
+}
+
+#map{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+}
+
+#panel{
+    position:absolute;
+    z-index:1000;
+    top:12px;
+    right:12px;
+    width:330px;
+    max-width:calc(100vw - 24px);
+    background:rgba(255,255,255,.96);
+    border-radius:10px;
+    box-shadow:0 3px 18px rgba(0,0,0,.35);
+    overflow:hidden;
+}
+
+#panelHeader{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:9px 10px;
+    background:#222;
+    color:white;
+    cursor:pointer;
+    user-select:none;
+}
+
+#panelTitle{
+    flex:1;
+    font-size:14px;
+    font-weight:bold;
+}
+
+#collapseButton{
+    border:0;
+    background:transparent;
+    color:white;
+    font-size:18px;
+    cursor:pointer;
+    width:28px;
+    height:28px;
+}
+
+#collapsibleContent{
+    padding:10px;
+}
+
+.row{
+    display:flex;
+    gap:7px;
+    margin-bottom:8px;
+}
+
+select,button{
+    font-size:13px;
+}
+
+select{
+    flex:1;
+    min-width:0;
+    padding:6px;
+}
+
+button.action{
+    border:1px solid #aaa;
+    border-radius:5px;
+    background:#fff;
+    padding:6px 9px;
+    cursor:pointer;
+}
+
+button.action:hover{
+    background:#eee;
+}
+
+#status{
+    font-size:12px;
+    color:#555;
+    margin:4px 0 7px;
+    min-height:15px;
+}
+
+#pixelValue{
+    background:#111;
+    color:white;
+    border-radius:5px;
+    padding:7px 8px;
+    font-size:12px;
+    min-height:16px;
+    margin-bottom:8px;
+}
+
+#legend{
+    margin-top:6px;
+}
+
+#legendTitle{
+    font-size:12px;
+    font-weight:bold;
+    margin-bottom:4px;
+}
+
+#legendBar{
+    height:13px;
+    border-radius:3px;
+    border:1px solid #888;
+}
+
+#legendLabels{
+    display:flex;
+    justify-content:space-between;
+    font-size:9px;
+    margin-top:2px;
+}
+
+#timeline{
+    position:absolute;
+    z-index:1100;
+    left:50%;
+    bottom:16px;
+    transform:translateX(-50%);
+    width:min(900px,calc(100vw - 30px));
+    background:rgba(255,255,255,.96);
+    border-radius:9px;
+    box-shadow:0 2px 15px rgba(0,0,0,.35);
+    padding:8px 10px;
+    box-sizing:border-box;
+}
+
+#timelineTop{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:5px;
+}
+
+#timelineTitle{
+    font-size:12px;
+    font-weight:bold;
+    white-space:nowrap;
+}
+
+#timelineScroller{
+    overflow-x:auto;
+    overflow-y:hidden;
+    cursor:grab;
+    scrollbar-width:thin;
+}
+
+#timelineScroller.dragging{
+    cursor:grabbing;
+}
+
+#timelineItems{
+    display:flex;
+    gap:5px;
+    width:max-content;
+    min-width:100%;
+    justify-content:center;
+}
+
+.timeButton{
+    border:1px solid #aaa;
+    background:#fff;
+    border-radius:5px;
+    padding:5px 8px;
+    cursor:pointer;
+    white-space:nowrap;
+    font-size:11px;
+}
+
+.timeButton:hover{
+    background:#eee;
+}
+
+.timeButton.active{
+    background:#222;
+    color:white;
+    border-color:#222;
+    font-weight:bold;
+}
+
+@media(max-width:600px){
+    #panel{
+        width:300px;
     }
 
-    #map {
-        position: absolute;
-        inset: 0;
+    #timeline{
+        bottom:8px;
     }
-
-    #topbar {
-        position: absolute;
-        z-index: 1000;
-        top: 10px;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        background: rgba(255,255,255,0.96);
-        padding: 8px 10px;
-        border-radius: 8px;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-        max-width: calc(100vw - 30px);
-    }
-
-    #variableSelect {
-        min-width: 170px;
-        max-width: 220px;
-        height: 32px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        background: white;
-        padding: 0 8px;
-        font-size: 13px;
-    }
-
-    button {
-        height: 32px;
-        border: 1px solid #bbb;
-        border-radius: 5px;
-        background: white;
-        padding: 0 10px;
-        cursor: pointer;
-        font-size: 13px;
-    }
-
-    button:hover {
-        background: #f1f1f1;
-    }
-
-    button:disabled {
-        opacity: 0.45;
-        cursor: default;
-    }
-
-    #status {
-        font-size: 12px;
-        color: #555;
-        white-space: nowrap;
-        max-width: 280px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    #timeline {
-        position: absolute;
-        z-index: 1000;
-        left: 50%;
-        bottom: 18px;
-        transform: translateX(-50%);
-        width: min(760px, calc(100vw - 30px));
-        background: rgba(255,255,255,0.96);
-        border-radius: 8px;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-        padding: 7px;
-        box-sizing: border-box;
-    }
-
-    #timelineControls {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-
-    #timelineScroll {
-        flex: 1;
-        overflow-x: auto;
-        overflow-y: hidden;
-        cursor: grab;
-        scrollbar-width: thin;
-    }
-
-    #timelineScroll.dragging {
-        cursor: grabbing;
-    }
-
-    #timelineHours {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        width: max-content;
-        min-height: 32px;
-    }
-
-    .hourButton {
-        height: 30px;
-        min-width: 58px;
-        padding: 0 8px;
-        font-size: 11px;
-        border: 1px solid #ccc;
-        background: #fff;
-        border-radius: 4px;
-        white-space: nowrap;
-    }
-
-    .hourButton.active {
-        background: #222;
-        color: white;
-        border-color: #222;
-    }
-
-    #legend {
-        position: absolute;
-        z-index: 1000;
-        right: 15px;
-        bottom: 18px;
-        width: 210px;
-        background: rgba(255,255,255,0.95);
-        padding: 10px;
-        border-radius: 7px;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-        box-sizing: border-box;
-    }
-
-    #legendTitle {
-        font-size: 13px;
-        font-weight: bold;
-        margin-bottom: 6px;
-    }
-
-    #legendGradient {
-        width: 100%;
-        height: 15px;
-        border-radius: 3px;
-        border: 1px solid rgba(0,0,0,0.2);
-    }
-
-    #legendLabels {
-        display: flex;
-        justify-content: space-between;
-        gap: 4px;
-        margin-top: 4px;
-        font-size: 10px;
-        color: #333;
-    }
-
-    #pixelValue {
-        position: absolute;
-        z-index: 1000;
-        left: 12px;
-        bottom: 18px;
-        background: rgba(255,255,255,0.94);
-        padding: 7px 9px;
-        border-radius: 6px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-        font-size: 12px;
-        pointer-events: none;
-    }
-
-    #loading {
-        position: absolute;
-        z-index: 2000;
-        inset: 0;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        background: rgba(255,255,255,0.55);
-        pointer-events: none;
-    }
-
-    #loadingBox {
-        background: white;
-        padding: 15px 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 15px rgba(0,0,0,0.25);
-        font-size: 14px;
-    }
-
-    @media (max-width: 700px) {
-        #topbar {
-            left: 8px;
-            right: 8px;
-            transform: none;
-            max-width: none;
-        }
-
-        #variableSelect {
-            min-width: 120px;
-        }
-
-        #status {
-            display: none;
-        }
-
-        #legend {
-            width: 170px;
-            right: 8px;
-            bottom: 68px;
-        }
-
-        #pixelValue {
-            bottom: 68px;
-        }
-    }
+}
 </style>
 </head>
 
@@ -239,79 +226,66 @@
 
 <div id="map"></div>
 
-<div id="topbar">
-    <select id="variableSelect"></select>
+<div id="panel">
 
-    <button id="downloadBtn" type="button">
-        Download
-    </button>
+    <div id="panelHeader">
+        <div id="panelTitle">AEMET HARMONIE-AROME</div>
+        <button id="collapseButton">−</button>
+    </div>
 
-    <button id="githubBtn" type="button">
-        GitHub
-    </button>
+    <div id="collapsibleContent">
 
-    <span id="status">Loading...</span>
+        <div class="row">
+            <select id="variableSelect">
+                <option>Loading...</option>
+            </select>
+        </div>
+
+        <div class="row">
+            <button class="action" id="githubButton">GitHub</button>
+            <button class="action" id="downloadButton">Download TIFF</button>
+        </div>
+
+        <div id="status">Loading files...</div>
+
+        <div id="pixelValue">
+            Click the map to read the raster value.
+        </div>
+
+        <div id="legend">
+            <div id="legendTitle"></div>
+            <div id="legendBar"></div>
+            <div id="legendLabels"></div>
+        </div>
+
+    </div>
 </div>
 
 <div id="timeline">
-    <div id="timelineControls">
 
-        <button id="prevBtn" type="button" title="Previous hour">
-            ◀
-        </button>
-
-        <div id="timelineScroll">
-            <div id="timelineHours"></div>
-        </div>
-
-        <button id="nextBtn" type="button" title="Next hour">
-            ▶
-        </button>
-
+    <div id="timelineTop">
+        <div id="timelineTitle">Time</div>
     </div>
-</div>
 
-<div id="legend">
-    <div id="legendTitle">Legend</div>
-    <div id="legendGradient"></div>
-    <div id="legendLabels"></div>
-</div>
-
-<div id="pixelValue">
-    Move the mouse over the map
-</div>
-
-<div id="loading">
-    <div id="loadingBox">
-        Loading GeoTIFF...
+    <div id="timelineScroller">
+        <div id="timelineItems"></div>
     </div>
+
 </div>
-
-
-<!-- Leaflet -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<!-- Projection support -->
-<script src="https://unpkg.com/proj4@2.10.0/dist/proj4.js"></script>
-
-<!-- GeoRaster -->
-<script src="https://unpkg.com/georaster"></script>
-
-<!-- GeoTIFF-aware Leaflet raster layer -->
-<script src="https://unpkg.com/georaster-layer-for-leaflet@4.1.2/dist/georaster-layer-for-leaflet.min.js"></script>
-
 
 <script>
+"use strict";
 
-/* ============================================================
-   CONFIGURATION
-   ============================================================ */
+
+/* =========================================================
+   CONFIG
+   ========================================================= */
+
+const GITHUB_REPO =
+    "https://github.com/roman-HG/prediccion-aemet-harmonie-arome";
 
 const GITHUB_API =
     "https://api.github.com/repos/roman-HG/prediccion-aemet-harmonie-arome/contents/tiff";
-
-const GITHUB_REPOSITORY_URL =
-    "https://github.com/roman-HG/prediccion-aemet-harmonie-arome";
 
 const PRODUCT_CODES = [
     "_61_1HH.tif",
@@ -327,405 +301,233 @@ const PRODUCT_CODES = [
 ];
 
 
-/* ============================================================
-   PRODUCT DEFINITIONS
-   ============================================================ */
-
 const PRODUCTS = {
 
-    "_11.tif": {
-        name: "Temperatura",
-        unit: "°C",
-
-        R: [
-            122,150,181,209,138,166,196,224,
-            255,26,26,28,28,31,0,10,
-            20,33,102,204,255,255,255,255,
-            255,255,255,232,209,178,161,138
-        ],
-
-        G: [
-            56,48,41,33,43,97,148,201,
-            255,26,54,84,112,143,237,217,
-            196,178,255,255,255,222,191,158,
-            128,0,51,51,51,51,54,54
-        ],
-
-        B: [
-            140,140,140,143,227,232,240,247,
-            255,112,148,184,219,255,237,214,
-            191,171,102,0,0,0,0,0,
-            0,178,145,112,79,46,15
-        ],
-
-        v: [
-            -27.5,-22.5,-17.5,-12.5,-9,-7,-5,-3,
-            -1,1,3,5,7,9,11,13,
-            15,17,19,21,23,25,27,29,
-            31,33,35,37,39,41,43,44
-        ]
+    "_11.tif":{
+        name:"Temperatura",
+        unit:"°C",
+        R:[122,150,181,209,138,166,196,224,255,26,26,28,28,31,0,10,20,33,102,204,255,255,255,255,255,255,255,232,209,178,161,138],
+        G:[56,48,41,33,43,97,148,201,255,26,54,84,112,143,237,217,196,178,255,255,255,222,191,158,128,0,51,51,51,51,54,54],
+        B:[140,140,140,143,227,232,240,247,255,112,148,184,219,255,237,214,191,171,102,0,0,0,0,0,0,178,145,112,79,46,15],
+        v:[-27.5,-22.5,-17.5,-12.5,-9,-7,-5,-3,-1,1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,44]
     },
 
-
-    "_32.tif": {
-        name: "Viento",
-        unit: "km/h",
-
-        R: [
-            216,175,102,80,168,217,
-            255,255,255,255,255,153,153
-        ],
-
-        G: [
-            250,249,246,249,244,242,
-            201,138,105,89,120,102,51
-        ],
-
-        B: [
-            248,246,236,183,1,0,
-            11,23,31,89,212,255,204
-        ],
-
-        v: [
-            5,15,25,35,45,55,
-            65,75,85,95,105,115,120
-        ]
+    "_32.tif":{
+        name:"Viento",
+        unit:"km/h",
+        R:[216,175,102,80,168,217,255,255,255,255,255,153,153],
+        G:[250,249,246,249,244,242,201,138,105,89,120,102,51],
+        B:[248,246,236,183,1,0,11,23,31,89,212,255,204],
+        v:[5,15,25,35,45,55,65,75,85,95,105,115,120]
     },
 
-
-    "_61_1HH.tif": {
-        name: "Lluvia 1h",
-        unit: "mm",
-
-        R: [
-            19,176,51,0,0,0,128,191,
-            255,255,255,255,204,219,236
-        ],
-
-        G: [
-            49,224,245,204,178,153,204,230,
-            255,186,122,61,84,141,200
-        ],
-
-        B: [
-            52,230,222,128,64,0,0,0,
-            0,15,8,3,83,140,200
-        ],
-
-        v: [
-            0,0.75,1.5,3.5,7.5,15,25,35,
-            50,70,90,110,150,215,275
-        ]
+    "_61_1HH.tif":{
+        name:"Lluvia 1h",
+        unit:"mm",
+        R:[19,176,51,0,0,0,128,191,255,255,255,255,204,219,236],
+        G:[49,224,245,204,178,153,204,230,255,186,122,61,84,141,200],
+        B:[52,230,222,128,64,0,0,0,0,15,8,3,83,140,200],
+        v:[0,0.75,1.5,3.5,7.5,15,25,35,50,70,90,110,150,215,275]
     },
 
-
-    "_61_3HH.tif": {
-        name: "Lluvia 3h",
-        unit: "mm",
-
-        R: [
-            19,176,51,0,0,0,128,191,
-            255,255,255,255,204,219,236
-        ],
-
-        G: [
-            49,224,245,204,178,153,204,230,
-            255,186,122,61,84,141,200
-        ],
-
-        B: [
-            52,230,222,128,64,0,0,0,
-            0,15,8,3,83,140,200
-        ],
-
-        v: [
-            0,0.75,1.5,3.5,7.5,15,25,35,
-            50,70,90,110,150,215,275
-        ]
+    "_61_3HH.tif":{
+        name:"Lluvia 3h",
+        unit:"mm",
+        R:[19,176,51,0,0,0,128,191,255,255,255,255,204,219,236],
+        G:[49,224,245,204,178,153,204,230,255,186,122,61,84,141,200],
+        B:[52,230,222,128,64,0,0,0,0,15,8,3,83,140,200],
+        v:[0,0.75,1.5,3.5,7.5,15,25,35,50,70,90,110,150,215,275]
     },
 
-
-    "_61_6HH.tif": {
-        name: "Lluvia 6h",
-        unit: "mm",
-
-        R: [
-            19,176,51,0,0,0,128,191,
-            255,255,255,255,204,219,236
-        ],
-
-        G: [
-            49,224,245,204,178,153,204,230,
-            255,186,122,61,84,141,200
-        ],
-
-        B: [
-            52,230,222,128,64,0,0,0,
-            0,15,8,3,83,140,200
-        ],
-
-        v: [
-            0,0.75,1.5,3.5,7.5,15,25,35,
-            50,70,90,110,150,215,275
-        ]
+    "_61_6HH.tif":{
+        name:"Lluvia 6h",
+        unit:"mm",
+        R:[19,176,51,0,0,0,128,191,255,255,255,255,204,219,236],
+        G:[49,224,245,204,178,153,204,230,255,186,122,61,84,141,200],
+        B:[52,230,222,128,64,0,0,0,0,15,8,3,83,140,200],
+        v:[0,0.75,1.5,3.5,7.5,15,25,35,50,70,90,110,150,215,275]
     },
 
-
-    "_71.tif": {
-        name: "Nubosidad",
-        unit: "%",
-
-        R: [
-            255,217,229,196,160,114,76,33,12
-        ],
-
-        G: [
-            255,217,235,214,196,169,141,115,41
-        ],
-
-        B: [
-            255,219,250,229,211,195,178,184,74
-        ],
-
-        v: [
-            15,25,35,45,55,65,75,85,90
-        ]
+    "_71.tif":{
+        name:"Nubosidad",
+        unit:"%",
+        R:[255,217,229,196,160,114,76,33,12],
+        G:[255,217,235,214,196,169,141,115,41],
+        B:[255,219,250,229,211,195,178,184,74],
+        v:[15,25,35,45,55,65,75,85,90]
     },
 
-
-    "_207.tif": {
-        name: "Rayos",
-        unit: "km⁻²",
-
-        R: [
-            53,47,41,35,63,147,
-            233,232,229,224,191
-        ],
-
-        G: [
-            151,231,247,244,241,238,
-            235,144,48,0,0
-        ],
-
-        B: [
-            253,250,180,90,30,24,
-            19,14,9,147,61
-        ],
-
-        v: [
-            0.0105,0.03,0.05,0.07,0.09,0.11,
-            0.13,0.15,0.17,0.19,0.2
-        ]
+    "_207.tif":{
+        name:"Rayos",
+        unit:"km⁻²",
+        R:[53,47,41,35,63,147,233,232,229,224,191],
+        G:[151,231,247,244,241,238,235,144,48,0,0],
+        B:[253,250,180,90,30,24,19,14,9,147,61],
+        v:[0.0105,0.03,0.05,0.07,0.09,0.11,0.13,0.15,0.17,0.19,0.2]
     },
 
-
-    "_207_3HH.tif": {
-        name: "Rayos 3h",
-        unit: "km⁻²",
-
-        R: [
-            53,47,41,35,63,147,
-            233,232,229,224,191
-        ],
-
-        G: [
-            151,231,247,244,241,238,
-            235,144,48,0,0
-        ],
-
-        B: [
-            253,250,180,90,30,24,
-            19,14,9,147,61
-        ],
-
-        v: [
-            0.0105,0.03,0.05,0.07,0.09,0.11,
-            0.13,0.15,0.17,0.19,0.2
-        ]
+    "_207_3HH.tif":{
+        name:"Rayos 3h",
+        unit:"km⁻²",
+        R:[53,47,41,35,63,147,233,232,229,224,191],
+        G:[151,231,247,244,241,238,235,144,48,0,0],
+        B:[253,250,180,90,30,24,19,14,9,147,61],
+        v:[0.0105,0.03,0.05,0.07,0.09,0.11,0.13,0.15,0.17,0.19,0.2]
     },
 
-
-    "_228.tif": {
-        name: "Rachas",
-        unit: "km/h",
-
-        R: [
-            217,176,102,79,168,217,255,
-            255,255,255,153,153,171,190
-        ],
-
-        G: [
-            248,250,247,250,245,242,201,
-            138,105,120,102,51,26,0
-        ],
-
-        B: [
-            248,247,237,184,0,0,10,
-            23,31,89,212,255,204,133
-        ],
-
-        v: [
-            5,15,25,35,45,55,65,75,
-            85,95,105,115,125,135,140
-        ]
+    "_228.tif":{
+        name:"Rachas",
+        unit:"km/h",
+        R:[217,176,102,79,168,217,255,255,255,255,153,153,171,190],
+        G:[248,250,247,250,245,242,201,138,105,120,102,51,26,0],
+        B:[248,247,237,184,0,0,10,23,31,89,212,255,204,133,61],
+        v:[5,15,25,35,45,55,65,75,85,95,105,115,125,135,140]
     },
 
-
-    "_228_3HH.tif": {
-        name: "Rachas 3h",
-        unit: "km/h",
-
-        R: [
-            217,176,102,79,168,217,255,
-            255,255,255,153,153,171,190
-        ],
-
-        G: [
-            248,250,247,250,245,242,201,
-            138,105,120,102,51,26,0
-        ],
-
-        B: [
-            248,247,237,184,0,0,10,
-            23,31,89,212,255,204,133
-        ],
-
-        v: [
-            5,15,25,35,45,55,65,75,
-            85,95,105,115,125,135,140
-        ]
+    "_228_3HH.tif":{
+        name:"Rachas 3h",
+        unit:"km/h",
+        R:[217,176,102,79,168,217,255,255,255,255,153,153,171,190],
+        G:[248,250,247,250,245,242,201,138,105,120,102,51,26,0],
+        B:[248,247,237,184,0,0,10,23,31,89,212,255,204,133,61],
+        v:[5,15,25,35,45,55,65,75,85,95,105,115,125,135,140]
     }
 };
 
 
-/* ============================================================
-   GLOBAL STATE
-   ============================================================ */
-
-let map;
-
-let geoRasterLayer = null;
-
-let currentGeoRaster = null;
-let currentRaster = null;
-
-let currentRasterWidth = 0;
-let currentRasterHeight = 0;
-
-let currentFile = null;
-
-let files = [];
-let filesByVariable = {};
-
-let selectedVariable = null;
-let selectedIndex = -1;
-
-let isLoadingRaster = false;
-
-
-/* ============================================================
+/* =========================================================
    MAP
-   ============================================================ */
+   ========================================================= */
 
-map = L.map("map", {
-    preferCanvas: true,
-    zoomControl: true
-});
+const map =
+    L.map("map",{
+        preferCanvas:true,
+        zoomControl:true
+    }).setView(
+        [40.25,-3.7],
+        6
+    );
 
 L.tileLayer(
     "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     {
-        maxZoom: 19,
-        attribution: "&copy; OpenStreetMap contributors"
+        maxZoom:19,
+        attribution:"&copy; OpenStreetMap contributors"
     }
 ).addTo(map);
 
-map.setView([40.25, -3.7], 6);
+
+/* =========================================================
+   STATE
+   ========================================================= */
+
+let allFiles = [];
+let filesByVariable = {};
+
+let currentVariable = null;
+let currentFile = null;
+let currentGeoRaster = null;
+let currentRasterLayer = null;
+
+let paneGeneration = 0;
+let loadGeneration = 0;
+let loadAbortController = null;
 
 
-/* ============================================================
-   DOM
-   ============================================================ */
+/* =========================================================
+   ELEMENTS
+   ========================================================= */
 
 const variableSelect =
     document.getElementById("variableSelect");
 
-const timelineHours =
-    document.getElementById("timelineHours");
-
-const timelineScroll =
-    document.getElementById("timelineScroll");
-
-const prevBtn =
-    document.getElementById("prevBtn");
-
-const nextBtn =
-    document.getElementById("nextBtn");
-
-const downloadBtn =
-    document.getElementById("downloadBtn");
-
-const githubBtn =
-    document.getElementById("githubBtn");
-
-const status =
+const statusElement =
     document.getElementById("status");
+
+const pixelValueElement =
+    document.getElementById("pixelValue");
+
+const timelineItems =
+    document.getElementById("timelineItems");
+
+const timelineScroller =
+    document.getElementById("timelineScroller");
 
 const legendTitle =
     document.getElementById("legendTitle");
 
-const legendGradient =
-    document.getElementById("legendGradient");
+const legendBar =
+    document.getElementById("legendBar");
 
 const legendLabels =
     document.getElementById("legendLabels");
 
-const pixelValue =
-    document.getElementById("pixelValue");
-
-const loading =
-    document.getElementById("loading");
+const downloadButton =
+    document.getElementById("downloadButton");
 
 
-/* ============================================================
-   UTILITIES
-   ============================================================ */
+/* =========================================================
+   PANEL
+   ========================================================= */
 
-function setStatus(text) {
-    status.textContent = text;
-}
+document.getElementById("githubButton").onclick = () => {
+    window.open(
+        GITHUB_REPO,
+        "_blank",
+        "noopener"
+    );
+};
+
+let panelCollapsed = false;
+
+document.getElementById("collapseButton")
+.addEventListener("click",event => {
+
+    event.stopPropagation();
+
+    panelCollapsed =
+        !panelCollapsed;
+
+    document.getElementById(
+        "collapsibleContent"
+    ).style.display =
+        panelCollapsed
+            ? "none"
+            : "block";
+
+    document.getElementById(
+        "collapseButton"
+    ).textContent =
+        panelCollapsed
+            ? "+"
+            : "−";
+});
 
 
-function setLoading(value, text = "Loading GeoTIFF...") {
-    loading.style.display = value ? "flex" : "none";
+/* =========================================================
+   PRODUCT DETECTION
+   ========================================================= */
 
-    const box = document.getElementById("loadingBox");
+function getProductCode(filename){
 
-    if (box) {
-        box.textContent = text;
-    }
-}
-
-
-function getProductCode(filename) {
-
-    if (!filename) {
-        return null;
-    }
+    if(!filename) return null;
 
     const name =
         filename.toLowerCase().trim();
 
     const base =
-        name.replace(/\.(tif|tiff)$/i, "");
+        name.replace(
+            /\.(tif|tiff)$/i,
+            ""
+        );
 
-    for (const code of PRODUCT_CODES) {
+    for(const code of PRODUCT_CODES){
 
         const cleanCode =
             code.toLowerCase()
-                .replace(/\.tif$/i, "");
+            .replace(/\.tif$/i,"");
 
-        if (base.endsWith(cleanCode)) {
+        if(base.endsWith(cleanCode)){
             return code;
         }
     }
@@ -734,106 +536,589 @@ function getProductCode(filename) {
 }
 
 
-function parseDateFromFilename(filename) {
+function parseDateFromFilename(filename){
 
-    if (!filename) {
-        return null;
-    }
-
-    const isoMatch = filename.match(
-        /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:[+-]\d{2}:\d{2}|Z)?)/i
-    );
-
-    if (isoMatch) {
-
-        const date =
-            new Date(isoMatch[1]);
-
-        if (!isNaN(date.getTime())) {
-            return date;
-        }
-    }
-
-
-    const standardMatch = filename.match(
-        /(\d{4}-\d{2}-\d{2})[ _-](\d{2}):(\d{2})/
-    );
-
-    if (standardMatch) {
-
-        const date =
-            new Date(
-                `${standardMatch[1]}T${standardMatch[2]}:${standardMatch[3]}:00Z`
-            );
-
-        if (!isNaN(date.getTime())) {
-            return date;
-        }
-    }
-
-
-    const compactMatch =
+    const match =
         filename.match(
-            /(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})/
+            /down_(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:[+-]\d{2}:\d{2}|Z))_/i
         );
 
-    if (compactMatch) {
+    if(!match) return null;
 
-        const date =
-            new Date(
-                `${compactMatch[1]}-${compactMatch[2]}-${compactMatch[3]}T${compactMatch[4]}:${compactMatch[5]}:00Z`
+    const date =
+        new Date(match[1]);
+
+    return Number.isNaN(
+        date.getTime()
+    )
+        ? null
+        : date;
+}
+
+
+/* =========================================================
+   LOAD GITHUB FILE LIST
+   ========================================================= */
+
+async function loadFilesFromGitHub(){
+
+    statusElement.textContent =
+        "Loading files from GitHub...";
+
+    const response =
+        await fetch(
+            GITHUB_API +
+            "?cacheBust=" +
+            Date.now(),
+            {
+                cache:"no-store"
+            }
+        );
+
+    if(!response.ok){
+        throw new Error(
+            "GitHub API returned HTTP " +
+            response.status
+        );
+    }
+
+    const files =
+        await response.json();
+
+    if(!Array.isArray(files)){
+        throw new Error(
+            "GitHub API did not return a file list."
+        );
+    }
+
+    allFiles =
+        files
+        .filter(file =>
+            file &&
+            file.type === "file" &&
+            /\.(tif|tiff)$/i.test(file.name)
+        )
+        .map(file => {
+
+            const productCode =
+                getProductCode(
+                    file.name
+                );
+
+            if(!productCode){
+                return null;
+            }
+
+            const product =
+                PRODUCTS[productCode];
+
+            if(!product){
+                return null;
+            }
+
+            return {
+                ...file,
+                productCode,
+                product,
+                date:
+                    parseDateFromFilename(
+                        file.name
+                    )
+            };
+        })
+        .filter(Boolean)
+        .sort((a,b) =>
+            (
+                a.date
+                    ? a.date.getTime()
+                    : 0
+            ) -
+            (
+                b.date
+                    ? b.date.getTime()
+                    : 0
+            )
+        );
+
+    if(!allFiles.length){
+        throw new Error(
+            "No recognised AEMET GeoTIFF products were found."
+        );
+    }
+
+    filesByVariable = {};
+
+    for(const file of allFiles){
+
+        if(!filesByVariable[
+            file.productCode
+        ]){
+            filesByVariable[
+                file.productCode
+            ] = [];
+        }
+
+        filesByVariable[
+            file.productCode
+        ].push(file);
+    }
+
+    populateVariableSelect();
+
+    const firstVariable =
+        Object.keys(
+            filesByVariable
+        )[0];
+
+    currentVariable =
+        firstVariable;
+
+    variableSelect.value =
+        firstVariable;
+
+    renderTimeline();
+
+    const filesForVariable =
+        filesByVariable[
+            currentVariable
+        ];
+
+    if(filesForVariable.length){
+        await loadRaster(
+            filesForVariable[0]
+        );
+    }
+}
+
+
+/* =========================================================
+   VARIABLES
+   ========================================================= */
+
+function populateVariableSelect(){
+
+    variableSelect.innerHTML = "";
+
+    for(const code of PRODUCT_CODES){
+
+        if(!filesByVariable[code]){
+            continue;
+        }
+
+        const option =
+            document.createElement(
+                "option"
             );
 
-        if (!isNaN(date.getTime())) {
-            return date;
-        }
+        option.value = code;
+
+        option.textContent =
+            PRODUCTS[code].name;
+
+        variableSelect.appendChild(
+            option
+        );
     }
 
-    return null;
+    variableSelect.value =
+        currentVariable;
 }
 
 
-function formatDate(date) {
+variableSelect.addEventListener(
+    "change",
+    async () => {
 
-    if (!date) {
-        return "Unknown";
+        currentVariable =
+            variableSelect.value;
+
+        currentFile = null;
+
+        pixelValueElement.textContent =
+            "Click the map to read the raster value.";
+
+        renderTimeline();
+
+        const files =
+            filesByVariable[
+                currentVariable
+            ] || [];
+
+        if(files.length){
+            await loadRaster(
+                files[0]
+            );
+        }
     }
+);
+
+
+/* =========================================================
+   TIMELINE
+   ========================================================= */
+
+function formatTime(date){
+
+    if(!date) return "?";
 
     return new Intl.DateTimeFormat(
         "en-GB",
         {
-            day: "2-digit",
-            month: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-            timeZone: "UTC"
+            day:"2-digit",
+            month:"2-digit",
+            hour:"2-digit",
+            minute:"2-digit",
+            hour12:false,
+            timeZone:"UTC"
         }
     ).format(date);
 }
 
 
-function formatHour(date) {
+function renderTimeline(){
 
-    if (!date) {
-        return "?";
+    timelineItems.innerHTML = "";
+
+    const files =
+        filesByVariable[
+            currentVariable
+        ] || [];
+
+    for(let i=0;i<files.length;i++){
+
+        const file =
+            files[i];
+
+        const button =
+            document.createElement(
+                "button"
+            );
+
+        button.className =
+            "timeButton";
+
+        button.dataset.index =
+            i;
+
+        button.textContent =
+            formatTime(
+                file.date
+            );
+
+        button.title =
+            file.name;
+
+        button.addEventListener(
+            "click",
+            () => loadRaster(file)
+        );
+
+        timelineItems.appendChild(
+            button
+        );
     }
 
-    return new Intl.DateTimeFormat(
-        "en-GB",
-        {
-            hour: "2-digit",
-            minute: "2-digit",
-            timeZone: "UTC"
-        }
-    ).format(date);
+    updateTimelineActive();
 }
 
 
-/* ============================================================
-   COLOR PALETTE
-   ============================================================ */
+function updateTimelineActive(){
 
-function colorForValue(value, product) {
+    const buttons =
+        timelineItems.querySelectorAll(
+            ".timeButton"
+        );
+
+    buttons.forEach(button => {
+
+        const index =
+            Number(
+                button.dataset.index
+            );
+
+        button.classList.toggle(
+            "active",
+            currentFile &&
+            filesByVariable[
+                currentVariable
+            ][index] === currentFile
+        );
+    });
+
+    const active =
+        timelineItems.querySelector(
+            ".timeButton.active"
+        );
+
+    if(active){
+
+        active.scrollIntoView({
+            behavior:"smooth",
+            block:"nearest",
+            inline:"center"
+        });
+    }
+}
+
+
+/* =========================================================
+   TIMELINE MOUSE / TOUCH
+   ========================================================= */
+
+let timelineDragging = false;
+let timelineDragStartX = 0;
+let timelineScrollStart = 0;
+
+timelineScroller.addEventListener(
+    "pointerdown",
+    event => {
+
+        timelineDragging = true;
+
+        timelineScroller.classList.add(
+            "dragging"
+        );
+
+        timelineDragStartX =
+            event.clientX;
+
+        timelineScrollStart =
+            timelineScroller.scrollLeft;
+
+        timelineScroller.setPointerCapture(
+            event.pointerId
+        );
+    }
+);
+
+timelineScroller.addEventListener(
+    "pointermove",
+    event => {
+
+        if(!timelineDragging) return;
+
+        timelineScroller.scrollLeft =
+            timelineScrollStart -
+            (
+                event.clientX -
+                timelineDragStartX
+            );
+    }
+);
+
+timelineScroller.addEventListener(
+    "pointerup",
+    event => {
+
+        timelineDragging = false;
+
+        timelineScroller.classList.remove(
+            "dragging"
+        );
+
+        try{
+            timelineScroller.releasePointerCapture(
+                event.pointerId
+            );
+        }catch(_){}
+    }
+);
+
+timelineScroller.addEventListener(
+    "pointercancel",
+    () => {
+
+        timelineDragging = false;
+
+        timelineScroller.classList.remove(
+            "dragging"
+        );
+    }
+);
+
+timelineScroller.addEventListener(
+    "wheel",
+    event => {
+
+        if(
+            Math.abs(event.deltaY) >
+            Math.abs(event.deltaX)
+        ){
+
+            timelineScroller.scrollLeft +=
+                event.deltaY;
+
+            event.preventDefault();
+        }
+
+    },
+    {
+        passive:false
+    }
+);
+
+
+/* =========================================================
+   KEYBOARD
+   ========================================================= */
+
+document.addEventListener(
+    "keydown",
+    event => {
+
+        if(!currentVariable) return;
+
+        const files =
+            filesByVariable[
+                currentVariable
+            ] || [];
+
+        if(!files.length) return;
+
+        let index =
+            currentFile
+                ? files.indexOf(
+                    currentFile
+                )
+                : 0;
+
+        if(event.key === "ArrowLeft"){
+
+            index =
+                Math.max(
+                    0,
+                    index - 1
+                );
+
+            event.preventDefault();
+
+        }else if(event.key === "ArrowRight"){
+
+            index =
+                Math.min(
+                    files.length - 1,
+                    index + 1
+                );
+
+            event.preventDefault();
+
+        }else if(event.key === "Home"){
+
+            index = 0;
+
+            event.preventDefault();
+
+        }else if(event.key === "End"){
+
+            index =
+                files.length - 1;
+
+            event.preventDefault();
+
+        }else if(event.key === "PageUp"){
+
+            index =
+                Math.max(
+                    0,
+                    index - 6
+                );
+
+            event.preventDefault();
+
+        }else if(event.key === "PageDown"){
+
+            index =
+                Math.min(
+                    files.length - 1,
+                    index + 6
+                );
+
+            event.preventDefault();
+
+        }else{
+            return;
+        }
+
+        loadRaster(
+            files[index]
+        );
+    }
+);
+
+
+/* =========================================================
+   LEGEND
+   ========================================================= */
+
+function updateLegend(product){
+
+    if(!product) return;
+
+    const count =
+        Math.min(
+            product.v.length,
+            product.R.length,
+            product.G.length,
+            product.B.length
+        );
+
+    if(!count) return;
+
+    legendTitle.textContent =
+        product.name +
+        " (" +
+        product.unit +
+        ")";
+
+    const stops = [];
+
+    for(let i=0;i<count;i++){
+
+        stops.push(
+            `rgb(${product.R[i]},${product.G[i]},${product.B[i]})`
+        );
+    }
+
+    legendBar.style.background =
+        "linear-gradient(to right," +
+        stops.join(",") +
+        ")";
+
+    legendLabels.innerHTML = "";
+
+    [
+        0,
+        Math.floor(
+            (count - 1) / 2
+        ),
+        count - 1
+    ].forEach(index => {
+
+        const span =
+            document.createElement(
+                "span"
+            );
+
+        span.textContent =
+            product.v[index] +
+            " " +
+            product.unit;
+
+        legendLabels.appendChild(
+            span
+        );
+    });
+}
+
+
+/* =========================================================
+   COLOUR
+   ========================================================= */
+
+function colorForValue(
+    value,
+    product
+){
 
     const v = product.v;
     const R = product.R;
@@ -848,11 +1133,11 @@ function colorForValue(value, product) {
             B.length
         );
 
-    if (!count) {
-        return [0, 0, 0];
+    if(!count){
+        return [0,0,0];
     }
 
-    if (value <= v[0]) {
+    if(value <= v[0]){
         return [
             R[0],
             G[0],
@@ -860,7 +1145,7 @@ function colorForValue(value, product) {
         ];
     }
 
-    if (value >= v[count - 1]) {
+    if(value >= v[count - 1]){
         return [
             R[count - 1],
             G[count - 1],
@@ -868,35 +1153,46 @@ function colorForValue(value, product) {
         ];
     }
 
-    for (let i = 0; i < count - 1; i++) {
+    for(let i=0;i<count-1;i++){
 
-        if (
+        if(
             value >= v[i] &&
-            value <= v[i + 1]
-        ) {
+            value <= v[i+1]
+        ){
 
             const range =
-                v[i + 1] - v[i];
+                v[i+1] - v[i];
 
             const t =
                 range === 0
                     ? 0
-                    : (value - v[i]) / range;
+                    : (
+                        value - v[i]
+                    ) / range;
 
             return [
                 Math.round(
                     R[i] +
-                    (R[i + 1] - R[i]) * t
+                    (
+                        R[i+1] -
+                        R[i]
+                    ) * t
                 ),
 
                 Math.round(
                     G[i] +
-                    (G[i + 1] - G[i]) * t
+                    (
+                        G[i+1] -
+                        G[i]
+                    ) * t
                 ),
 
                 Math.round(
                     B[i] +
-                    (B[i + 1] - B[i]) * t
+                    (
+                        B[i+1] -
+                        B[i]
+                    ) * t
                 )
             ];
         }
@@ -910,1131 +1206,682 @@ function colorForValue(value, product) {
 }
 
 
-function rgbString(rgb) {
+/* =========================================================
+   RASTER PANE
+   ========================================================= */
 
-    return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
-}
+function destroyRasterLayer(){
 
+    if(currentRasterLayer){
 
-/* ============================================================
-   LEGEND
-   ============================================================ */
-
-function updateLegend(product) {
-
-    if (!product) {
-        return;
-    }
-
-    const count =
-        Math.min(
-            product.v.length,
-            product.R.length,
-            product.G.length,
-            product.B.length
-        );
-
-    if (!count) {
-        return;
-    }
-
-    legendTitle.textContent =
-        `${product.name} (${product.unit})`;
-
-
-    const stops = [];
-
-    for (let i = 0; i < count; i++) {
-
-        const rgb =
-            colorForValue(
-                product.v[i],
-                product
+        try{
+            map.removeLayer(
+                currentRasterLayer
             );
+        }catch(_){}
 
-        const percentage =
-            count === 1
-                ? 0
-                : (i / (count - 1)) * 100;
-
-        stops.push(
-            `${rgbString(rgb)} ${percentage}%`
-        );
+        currentRasterLayer = null;
     }
 
-    legendGradient.style.background =
-        `linear-gradient(to right, ${stops.join(", ")})`;
+    currentGeoRaster = null;
 
-
-    legendLabels.innerHTML = "";
-
-    const labelIndexes = [];
-
-    if (count <= 6) {
-
-        for (let i = 0; i < count; i++) {
-            labelIndexes.push(i);
-        }
-
-    } else {
-
-        labelIndexes.push(0);
-
-        labelIndexes.push(
-            Math.floor((count - 1) * 0.25)
+    const oldPanes =
+        document.querySelectorAll(
+            ".aemet-raster-pane"
         );
 
-        labelIndexes.push(
-            Math.floor((count - 1) * 0.5)
-        );
-
-        labelIndexes.push(
-            Math.floor((count - 1) * 0.75)
-        );
-
-        labelIndexes.push(count - 1);
-    }
-
-
-    for (const index of labelIndexes) {
-
-        const span =
-            document.createElement("span");
-
-        span.textContent =
-            product.v[index];
-
-        legendLabels.appendChild(span);
-    }
+    oldPanes.forEach(
+        pane => pane.remove()
+    );
 }
 
 
-/* ============================================================
-   GITHUB FILE LOADING
-   ============================================================ */
+function createRasterPane(){
 
-async function loadFilesFromGitHub() {
+    paneGeneration++;
 
-    setStatus("Loading files...");
+    const name =
+        "aemet-raster-pane-" +
+        paneGeneration;
 
-    try {
+    const pane =
+        map.createPane(name);
+
+    pane.classList.add(
+        "aemet-raster-pane"
+    );
+
+    pane.style.zIndex = 300;
+
+    return name;
+}
+
+
+/* =========================================================
+   LOAD RASTER
+   ========================================================= */
+
+async function loadRaster(file){
+
+    if(!file) return;
+
+    const generation =
+        ++loadGeneration;
+
+    if(loadAbortController){
+
+        try{
+            loadAbortController.abort();
+        }catch(_){}
+    }
+
+    loadAbortController =
+        new AbortController();
+
+    currentFile = file;
+
+    updateTimelineActive();
+
+    statusElement.textContent =
+        "Loading " +
+        file.name +
+        "...";
+
+    pixelValueElement.textContent =
+        "Click the map to read the raster value.";
+
+    updateLegend(
+        file.product
+    );
+
+    downloadButton.onclick =
+        () => {
+
+            const separator =
+                file.download_url.includes("?")
+                    ? "&"
+                    : "?";
+
+            window.location.href =
+                file.download_url +
+                separator +
+                "download=" +
+                Date.now();
+        };
+
+    destroyRasterLayer();
+
+    const paneName =
+        createRasterPane();
+
+    try{
+
+        const separator =
+            file.download_url.includes("?")
+                ? "&"
+                : "?";
 
         const response =
             await fetch(
-                GITHUB_API,
+                file.download_url +
+                separator +
+                "cacheBust=" +
+                Date.now(),
                 {
-                    cache: "no-store"
+                    cache:"no-store",
+                    signal:
+                        loadAbortController.signal
                 }
             );
 
-        if (!response.ok) {
+        if(!response.ok){
 
             throw new Error(
-                `GitHub API returned ${response.status}`
-            );
-        }
-
-        const directory =
-            await response.json();
-
-
-        /*
-         * IMPORTANT:
-         *
-         * First collect every TIFF and only then identify
-         * the AEMET product from the END of its filename.
-         *
-         * This avoids accidentally failing when the filename
-         * contains timestamps, underscores, etc.
-         */
-
-        files =
-            directory
-                .filter(
-                    file =>
-                        file.type === "file" &&
-                        /\.(tif|tiff)$/i.test(file.name)
-                )
-                .map(file => {
-
-                    const productCode =
-                        getProductCode(file.name);
-
-                    const product =
-                        productCode
-                            ? PRODUCTS[productCode]
-                            : null;
-
-                    const date =
-                        parseDateFromFilename(file.name);
-
-                    return {
-                        ...file,
-                        productCode,
-                        product,
-                        date
-                    };
-                })
-                .filter(
-                    file =>
-                        file.productCode &&
-                        file.product &&
-                        file.download_url
-                );
-
-
-        files.sort(
-            (a, b) => {
-
-                const ta =
-                    a.date
-                        ? a.date.getTime()
-                        : 0;
-
-                const tb =
-                    b.date
-                        ? b.date.getTime()
-                        : 0;
-
-                return ta - tb;
-            }
-        );
-
-
-        if (!files.length) {
-
-            throw new Error(
-                "No recognised AEMET GeoTIFF products were found."
-            );
-        }
-
-
-        filesByVariable = {};
-
-
-        for (const file of files) {
-
-            const code =
-                file.productCode;
-
-            if (!filesByVariable[code]) {
-                filesByVariable[code] = [];
-            }
-
-            filesByVariable[code].push(file);
-        }
-
-
-        populateVariableSelect();
-
-
-        const firstVariable =
-            Object.keys(filesByVariable)[0];
-
-        if (firstVariable) {
-
-            selectedVariable =
-                firstVariable;
-
-            variableSelect.value =
-                firstVariable;
-
-            renderTimeline();
-
-            const variableFiles =
-                filesByVariable[firstVariable];
-
-            if (variableFiles.length) {
-
-                selectedIndex = 0;
-
-                await selectFile(
-                    variableFiles[0]
-                );
-            }
-        }
-
-    } catch (error) {
-
-        console.error(error);
-
-        setStatus(
-            `Failed to load data: ${error.message}`
-        );
-    }
-}
-
-
-/* ============================================================
-   VARIABLE SELECT
-   ============================================================ */
-
-function populateVariableSelect() {
-
-    variableSelect.innerHTML = "";
-
-    for (const code of Object.keys(filesByVariable)) {
-
-        const product =
-            PRODUCTS[code];
-
-        if (!product) {
-            continue;
-        }
-
-        const option =
-            document.createElement("option");
-
-        option.value = code;
-
-        option.textContent =
-            product.name;
-
-        variableSelect.appendChild(option);
-    }
-}
-
-
-variableSelect.addEventListener(
-    "change",
-    async () => {
-
-        selectedVariable =
-            variableSelect.value;
-
-        selectedIndex = 0;
-
-        renderTimeline();
-
-        const variableFiles =
-            filesByVariable[selectedVariable] || [];
-
-        if (variableFiles.length) {
-
-            await selectFile(
-                variableFiles[0]
-            );
-        }
-    }
-);
-
-
-/* ============================================================
-   TIMELINE
-   ============================================================ */
-
-function renderTimeline() {
-
-    timelineHours.innerHTML = "";
-
-    const variableFiles =
-        filesByVariable[selectedVariable] || [];
-
-
-    variableFiles.forEach(
-        (file, index) => {
-
-            const button =
-                document.createElement("button");
-
-            button.className =
-                "hourButton";
-
-            button.textContent =
-                formatHour(file.date);
-
-            button.title =
-                file.date
-                    ? file.date.toISOString()
-                    : file.name;
-
-            button.addEventListener(
-                "click",
-                () => {
-
-                    selectedIndex =
-                        index;
-
-                    selectFile(file);
-                }
-            );
-
-            timelineHours.appendChild(button);
-        }
-    );
-
-    updateTimelineActive();
-}
-
-
-function updateTimelineActive() {
-
-    const buttons =
-        timelineHours.querySelectorAll(
-            ".hourButton"
-        );
-
-    buttons.forEach(
-        (button, index) => {
-
-            button.classList.toggle(
-                "active",
-                index === selectedIndex
-            );
-        }
-    );
-
-
-    if (
-        selectedIndex >= 0 &&
-        buttons[selectedIndex]
-    ) {
-
-        buttons[selectedIndex].scrollIntoView(
-            {
-                behavior: "smooth",
-                block: "nearest",
-                inline: "center"
-            }
-        );
-    }
-
-
-    prevBtn.disabled =
-        selectedIndex <= 0;
-
-    const variableFiles =
-        filesByVariable[selectedVariable] || [];
-
-    nextBtn.disabled =
-        selectedIndex >= variableFiles.length - 1;
-}
-
-
-prevBtn.addEventListener(
-    "click",
-    () => {
-
-        if (selectedIndex <= 0) {
-            return;
-        }
-
-        selectedIndex--;
-
-        const variableFiles =
-            filesByVariable[selectedVariable];
-
-        selectFile(
-            variableFiles[selectedIndex]
-        );
-    }
-);
-
-
-nextBtn.addEventListener(
-    "click",
-    () => {
-
-        const variableFiles =
-            filesByVariable[selectedVariable];
-
-        if (
-            selectedIndex >=
-            variableFiles.length - 1
-        ) {
-            return;
-        }
-
-        selectedIndex++;
-
-        selectFile(
-            variableFiles[selectedIndex]
-        );
-    }
-);
-
-
-/* ============================================================
-   TIMELINE MOUSE DRAGGING
-   ============================================================ */
-
-let timelineDragging = false;
-let timelineDragStartX = 0;
-let timelineScrollStart = 0;
-
-
-timelineScroll.addEventListener(
-    "pointerdown",
-    event => {
-
-        timelineDragging = true;
-
-        timelineDragStartX =
-            event.clientX;
-
-        timelineScrollStart =
-            timelineScroll.scrollLeft;
-
-        timelineScroll.classList.add(
-            "dragging"
-        );
-
-        timelineScroll.setPointerCapture(
-            event.pointerId
-        );
-    }
-);
-
-
-timelineScroll.addEventListener(
-    "pointermove",
-    event => {
-
-        if (!timelineDragging) {
-            return;
-        }
-
-        const delta =
-            event.clientX -
-            timelineDragStartX;
-
-        timelineScroll.scrollLeft =
-            timelineScrollStart - delta;
-    }
-);
-
-
-timelineScroll.addEventListener(
-    "pointerup",
-    event => {
-
-        timelineDragging = false;
-
-        timelineScroll.classList.remove(
-            "dragging"
-        );
-
-        try {
-            timelineScroll.releasePointerCapture(
-                event.pointerId
-            );
-        } catch (e) {}
-    }
-);
-
-
-timelineScroll.addEventListener(
-    "wheel",
-    event => {
-
-        if (
-            Math.abs(event.deltaY) >
-            Math.abs(event.deltaX)
-        ) {
-
-            event.preventDefault();
-
-            timelineScroll.scrollLeft +=
-                event.deltaY;
-        }
-    },
-    {
-        passive: false
-    }
-);
-
-
-/* ============================================================
-   KEYBOARD NAVIGATION
-   ============================================================ */
-
-document.addEventListener(
-    "keydown",
-    event => {
-
-        if (
-            event.target === variableSelect
-        ) {
-            return;
-        }
-
-        const variableFiles =
-            filesByVariable[selectedVariable] || [];
-
-        if (!variableFiles.length) {
-            return;
-        }
-
-
-        if (event.key === "ArrowLeft") {
-
-            event.preventDefault();
-
-            if (selectedIndex > 0) {
-
-                selectedIndex--;
-
-                selectFile(
-                    variableFiles[selectedIndex]
-                );
-            }
-        }
-
-
-        else if (event.key === "ArrowRight") {
-
-            event.preventDefault();
-
-            if (
-                selectedIndex <
-                variableFiles.length - 1
-            ) {
-
-                selectedIndex++;
-
-                selectFile(
-                    variableFiles[selectedIndex]
-                );
-            }
-        }
-
-
-        else if (event.key === "Home") {
-
-            event.preventDefault();
-
-            selectedIndex = 0;
-
-            selectFile(
-                variableFiles[selectedIndex]
-            );
-        }
-
-
-        else if (event.key === "End") {
-
-            event.preventDefault();
-
-            selectedIndex =
-                variableFiles.length - 1;
-
-            selectFile(
-                variableFiles[selectedIndex]
-            );
-        }
-
-
-        else if (event.key === "PageUp") {
-
-            event.preventDefault();
-
-            selectedIndex =
-                Math.max(
-                    0,
-                    selectedIndex - 3
-                );
-
-            selectFile(
-                variableFiles[selectedIndex]
-            );
-        }
-
-
-        else if (event.key === "PageDown") {
-
-            event.preventDefault();
-
-            selectedIndex =
-                Math.min(
-                    variableFiles.length - 1,
-                    selectedIndex + 3
-                );
-
-            selectFile(
-                variableFiles[selectedIndex]
-            );
-        }
-    }
-);
-
-
-/* ============================================================
-   GEO RASTER LOADING
-   ============================================================ */
-
-
-async function loadGeoTiff(file) {
-
-    if (!file || !file.download_url) {
-        return;
-    }
-
-    if (isLoadingRaster) {
-        return;
-    }
-
-    isLoadingRaster = true;
-    currentFile = file;
-
-    setLoading(true, `Loading ${file.name}...`);
-    setStatus(`Loading ${file.name}...`);
-
-    try {
-
-        /*
-         * IMPORTANT:
-         *
-         * GitHub gives us a URL.
-         * parseGeoraster() expects the actual
-         * GeoTIFF ArrayBuffer.
-         */
-
-        const response = await fetch(
-            file.download_url,
-            {
-                cache: "no-store"
-            }
-        );
-
-        if (!response.ok) {
-            throw new Error(
-                `Unable to download GeoTIFF (${response.status})`
+                "HTTP " +
+                response.status
             );
         }
 
         const arrayBuffer =
             await response.arrayBuffer();
 
-
-        /*
-         * Parse the actual GeoTIFF.
-         *
-         * GeoRaster reads:
-         * - CRS
-         * - extent
-         * - pixel size
-         * - raster dimensions
-         * - NoData
-         * - raster values
-         */
+        if(
+            generation !==
+            loadGeneration
+        ){
+            return;
+        }
 
         const georaster =
-            await parseGeoraster(arrayBuffer);
+            await parseGeoraster(
+                arrayBuffer
+            );
 
-
-        console.log("GeoRaster metadata:", georaster);
-
-        currentGeoRaster = georaster;
-
-
-        /*
-         * GeoRasterLayer handles the raster itself.
-         *
-         * DO NOT convert this into a canvas.
-         * DO NOT construct Leaflet imageOverlay bounds.
-         * DO NOT flip the Y axis.
-         */
-
-        if (geoRasterLayer) {
-            map.removeLayer(geoRasterLayer);
-            geoRasterLayer = null;
+        if(
+            generation !==
+            loadGeneration
+        ){
+            return;
         }
 
+        currentGeoRaster =
+            georaster;
 
-        const product =
-            file.product;
-
-
-        geoRasterLayer =
+        const rasterLayer =
             new GeoRasterLayer({
-                georaster: georaster,
 
-                opacity: 0.82,
+                georaster:
+                    georaster,
 
-                /*
-                 * Keep the native meteorological pixels
-                 * as much as possible.
-                 */
-                resolution: 256,
+                pane:
+                    paneName,
 
-                /*
-                 * Nearest is appropriate for meteorological
-                 * fields where we don't want the renderer
-                 * inventing intermediate values.
-                 */
-                resampleMethod: "nearest",
+                opacity:
+                    0.9,
 
-                pixelValuesToColorFn: values => {
+                resolution:
+                    256,
 
-                    const value =
-                        Number(values[0]);
+                caching:
+                    false,
 
+                updateWhenIdle:
+                    false,
 
-                    if (!Number.isFinite(value)) {
-                        return null;
-                    }
+                updateWhenZooming:
+                    true,
 
+                keepBuffer:
+                    2,
 
-                    /*
-                     * GeoRaster exposes NoData through
-                     * noDataValue.
-                     */
-                    if (
-                        georaster.noDataValue !== undefined &&
-                        georaster.noDataValue !== null &&
-                        Number(value) ===
-                        Number(georaster.noDataValue)
-                    ) {
-                        return null;
-                    }
+                resampleMethod:
+                    "nearest",
 
+                proj4:
+                    proj4,
 
-                    const rgb =
-                        colorForValue(
-                            value,
-                            product
+                pixelValuesToColorFn:
+                    values => {
+
+                        if(
+                            !values ||
+                            !values.length
+                        ){
+                            return null;
+                        }
+
+                        const value =
+                            Number(
+                                values[0]
+                            );
+
+                        if(
+                            !Number.isFinite(
+                                value
+                            )
+                        ){
+                            return null;
+                        }
+
+                        const rgb =
+                            colorForValue(
+                                value,
+                                file.product
+                            );
+
+                        return (
+                            "rgb(" +
+                            rgb[0] +
+                            "," +
+                            rgb[1] +
+                            "," +
+                            rgb[2] +
+                            ")"
                         );
-
-
-                    return `rgb(
-                        ${rgb[0]},
-                        ${rgb[1]},
-                        ${rgb[2]}
-                    )`;
-                }
+                    }
             });
 
+        currentRasterLayer =
+            rasterLayer;
 
-        geoRasterLayer.addTo(map);
+        rasterLayer.addTo(map);
 
+        requestAnimationFrame(
+            () => {
 
-        /*
-         * IMPORTANT:
-         *
-         * These bounds come from GeoRasterLayer,
-         * not from manually converting the TIFF
-         * bounding box into a Leaflet imageOverlay.
-         *
-         * This lets the library handle the raster's
-         * georeferencing/projection.
-         */
+                if(
+                    currentRasterLayer ===
+                    rasterLayer
+                ){
 
-        const bounds =
-            geoRasterLayer.getBounds();
+                    try{
+                        rasterLayer.redraw();
+                    }catch(_){}
 
-
-        if (
-            bounds &&
-            bounds.isValid &&
-            bounds.isValid()
-        ) {
-
-            map.fitBounds(
-                bounds,
-                {
-                    padding: [20, 20],
-                    maxZoom: 8
+                    map.invalidateSize({
+                        pan:false
+                    });
                 }
-            );
-        }
-
-
-        updateLegend(product);
-
-        setStatus(
-            `${product.name} · ${formatDate(file.date)}`
+            }
         );
 
-        updateTimelineActive();
+        statusElement.textContent =
+            file.product.name +
+            " · " +
+            formatTime(file.date);
 
+    }catch(error){
 
-    } catch (error) {
+        if(
+            error &&
+            error.name ===
+            "AbortError"
+        ){
+            return;
+        }
 
         console.error(
-            "GeoTIFF loading error:",
+            "Raster loading error:",
             error
         );
 
-        setStatus(
-            `Failed to load GeoTIFF: ${error.message}`
+        currentGeoRaster = null;
+        currentRasterLayer = null;
+
+        statusElement.textContent =
+            "Error: " +
+            error.message;
+
+        pixelValueElement.textContent =
+            "Raster could not be loaded.";
+    }
+}
+
+
+/* =========================================================
+   PIXEL LOOKUP
+   =========================================================
+
+   The important fix is the VALUE ARRAY handling.
+
+   georaster.values[0] is a 2-D raster:
+   
+       band[row][column]
+
+   but the individual rows may be TypedArrays
+   (Float32Array / Int16Array / etc.).
+
+   Array.isArray(row) is FALSE for a TypedArray.
+
+   Therefore we detect rows by their .length instead.
+   ========================================================= */
+
+function getRasterPixelValue(
+    layer,
+    georaster,
+    lat,
+    lng
+){
+
+    if(
+        !layer ||
+        !georaster
+    ){
+        return null;
+    }
+
+    const width =
+        Number(
+            georaster.width
         );
 
-        pixelValue.textContent =
-            `Error: ${error.message}`;
+    const height =
+        Number(
+            georaster.height
+        );
 
-    } finally {
+    const xmin =
+        Number(
+            georaster.xmin
+        );
 
-        isLoadingRaster = false;
+    const ymax =
+        Number(
+            georaster.ymax
+        );
 
-        setLoading(false);
+    const pixelWidth =
+        Number(
+            georaster.pixelWidth
+        );
+
+    const pixelHeight =
+        Number(
+            georaster.pixelHeight
+        );
+
+    if(
+        !Number.isFinite(width) ||
+        !Number.isFinite(height) ||
+        !Number.isFinite(xmin) ||
+        !Number.isFinite(ymax) ||
+        !Number.isFinite(pixelWidth) ||
+        !Number.isFinite(pixelHeight) ||
+        width <= 0 ||
+        height <= 0 ||
+        pixelWidth === 0 ||
+        pixelHeight === 0
+    ){
+        return null;
     }
-}
 
 
-/* ============================================================
-   SELECT FILE
-   ============================================================ */
+    /* Convert the map click from WGS84 to the TIFF CRS. */
 
-async function selectFile(file) {
+    let projected;
 
-    if (!file) {
-        return;
+    try{
+
+        const projector =
+            layer.getProjector(
+                4326,
+                georaster.projection
+            );
+
+        projected =
+            projector.forward([
+                lng,
+                lat
+            ]);
+
+    }catch(error){
+
+        console.error(
+            "Raster projection error:",
+            error
+        );
+
+        return null;
     }
 
-    currentFile = file;
 
-    const variableFiles =
-        filesByVariable[selectedVariable] || [];
+    const rasterX =
+        Number(
+            projected[0]
+        );
 
-    const index =
-        variableFiles.indexOf(file);
+    const rasterY =
+        Number(
+            projected[1]
+        );
 
-    if (index >= 0) {
-        selectedIndex = index;
+    if(
+        !Number.isFinite(rasterX) ||
+        !Number.isFinite(rasterY)
+    ){
+        return null;
     }
 
-    updateTimelineActive();
 
-    await loadGeoTiff(file);
-}
+    /*
+     * GeoRaster's coordinate origin is:
+     *
+     *     xmin -------------------->
+     *       |
+     *       |
+     *       v
+     *
+     * with ymax representing the top edge.
+     */
+
+    let pixelX =
+        Math.floor(
+            (
+                rasterX -
+                xmin
+            ) /
+            Math.abs(pixelWidth)
+        );
+
+    let pixelY =
+        Math.floor(
+            (
+                ymax -
+                rasterY
+            ) /
+            Math.abs(pixelHeight)
+        );
 
 
-/* ============================================================
-   PIXEL INSPECTION
-   ============================================================ */
+    if(
+        pixelX === width
+    ){
+        pixelX =
+            width - 1;
+    }
 
-map.on(
-    "mousemove",
-    event => {
-
-        if (
-            !currentGeoRaster ||
-            !currentRaster
-        ) {
-            pixelValue.textContent =
-                "Move the mouse over the map";
-
-            return;
-        }
+    if(
+        pixelY === height
+    ){
+        pixelY =
+            height - 1;
+    }
 
 
-        const lat =
-            event.latlng.lat;
+    if(
+        pixelX < 0 ||
+        pixelX >= width ||
+        pixelY < 0 ||
+        pixelY >= height
+    ){
+        return null;
+    }
 
-        const lon =
-            event.latlng.lng;
 
+    const values =
+        georaster.values;
+
+    if(
+        !values ||
+        !values.length
+    ){
+        return null;
+    }
+
+    const band =
+        values[0];
+
+    if(!band){
+        return null;
+    }
+
+
+    let value;
+
+
+    /*
+     * THIS IS THE FIX.
+     *
+     * A row may be:
+     *
+     *   Array
+     *   Float32Array
+     *   Float64Array
+     *   Int16Array
+     *   Uint16Array
+     *
+     * Array.isArray() only detects the first one.
+     *
+     * Test for a row with a numeric .length instead.
+     */
+
+    const row =
+        band[pixelY];
+
+    if(
+        row !== undefined &&
+        row !== null &&
+        typeof row.length === "number"
+    ){
+
+        value =
+            row[pixelX];
+
+    }else{
 
         /*
-         * GeoRaster gives us its coordinates in the
-         * source CRS. For normal AEMET geographic
-         * products this is commonly longitude/latitude.
-         *
-         * If the source raster is projected, convert
-         * the mouse coordinate into that CRS before
-         * calculating the raster pixel.
+         * Fallback for a genuinely flat raster array.
          */
 
-        let sourceX = lon;
-        let sourceY = lat;
+        value =
+            band[
+                pixelY * width +
+                pixelX
+            ];
+    }
 
 
-        try {
-
-            const projection =
-                currentGeoRaster.projection;
-
-
-            if (
-                projection &&
-                Number(projection) !== 4326
-            ) {
-
-                const sourceProjection =
-                    `EPSG:${projection}`;
-
-                const transformed =
-                    proj4(
-                        "EPSG:4326",
-                        sourceProjection,
-                        [lon, lat]
-                    );
-
-                sourceX =
-                    transformed[0];
-
-                sourceY =
-                    transformed[1];
-            }
-
-        } catch (error) {
-
-            /*
-             * If projection transformation isn't
-             * available, fall back to geographic
-             * coordinates.
-             */
-        }
+    if(
+        value === undefined ||
+        value === null
+    ){
+        return null;
+    }
 
 
-        const xmin =
-            currentGeoRaster.xmin;
+    const numericValue =
+        Number(value);
 
-        const xmax =
-            currentGeoRaster.xmax;
+    if(
+        !Number.isFinite(
+            numericValue
+        )
+    ){
+        return null;
+    }
 
-        const ymin =
-            currentGeoRaster.ymin;
 
-        const ymax =
-            currentGeoRaster.ymax;
+    return {
+        value:numericValue,
+        pixelX,
+        pixelY
+    };
+}
 
 
-        if (
-            xmin === undefined ||
-            xmax === undefined ||
-            ymin === undefined ||
-            ymax === undefined
-        ) {
+/* =========================================================
+   MAP CLICK
+   ========================================================= */
 
-            pixelValue.textContent =
-                "No geographic metadata";
+map.on(
+    "click",
+    event => {
+
+        if(
+            !currentGeoRaster ||
+            !currentRasterLayer
+        ){
+
+            pixelValueElement.textContent =
+                "No raster loaded.";
 
             return;
         }
 
-
-        const normalizedX =
-            (sourceX - xmin) /
-            (xmax - xmin);
-
-
-        const normalizedY =
-            (ymax - sourceY) /
-            (ymax - ymin);
-
-
-        const x =
-            Math.floor(
-                normalizedX *
-                currentRasterWidth
+        const result =
+            getRasterPixelValue(
+                currentRasterLayer,
+                currentGeoRaster,
+                event.latlng.lat,
+                event.latlng.lng
             );
 
+        if(!result){
 
-        const y =
-            Math.floor(
-                normalizedY *
-                currentRasterHeight
-            );
-
-
-        if (
-            x < 0 ||
-            y < 0 ||
-            x >= currentRasterWidth ||
-            y >= currentRasterHeight
-        ) {
-
-            pixelValue.textContent =
-                "Outside raster";
+            pixelValueElement.textContent =
+                "No raster value at this location.";
 
             return;
         }
-
-
-        const row =
-            currentRaster[y];
-
-        if (!row) {
-
-            pixelValue.textContent =
-                "No data";
-
-            return;
-        }
-
-
-        const value =
-            Number(row[x]);
-
-
-        if (!Number.isFinite(value)) {
-
-            pixelValue.textContent =
-                "No data";
-
-            return;
-        }
-
 
         const product =
-            currentFile &&
-            currentFile.product;
+            currentFile
+                ? currentFile.product
+                : null;
 
-
-        pixelValue.textContent =
+        const unit =
             product
-                ? `${value} ${product.unit}`
-                : `${value}`;
+                ? product.unit
+                : "";
+
+        pixelValueElement.textContent =
+            result.value +
+            (
+                unit
+                    ? " " + unit
+                    : ""
+            ) +
+            " · pixel " +
+            result.pixelX +
+            ", " +
+            result.pixelY;
     }
 );
 
 
-/* ============================================================
-   DOWNLOAD
-   ============================================================ */
+/* =========================================================
+   REDRAW
+   ========================================================= */
 
-downloadBtn.addEventListener(
-    "click",
+map.on(
+    "zoomend",
     () => {
 
-        if (
-            !currentFile ||
-            !currentFile.download_url
-        ) {
+        if(!currentRasterLayer){
             return;
         }
 
-        const link =
-            document.createElement("a");
-
-        link.href =
-            currentFile.download_url;
-
-        link.download =
-            currentFile.name;
-
-        document.body.appendChild(link);
-
-        link.click();
-
-        link.remove();
+        try{
+            currentRasterLayer.redraw();
+        }catch(_){}
     }
 );
 
 
-/* ============================================================
-   GITHUB BUTTON
-   ============================================================ */
-
-githubBtn.addEventListener(
-    "click",
+window.addEventListener(
+    "resize",
     () => {
 
-        window.open(
-            GITHUB_REPOSITORY_URL,
-            "_blank",
-            "noopener,noreferrer"
-        );
+        map.invalidateSize({
+            pan:false
+        });
+
+        if(currentRasterLayer){
+
+            try{
+                currentRasterLayer.redraw();
+            }catch(_){}
+        }
     }
 );
 
 
-/* ============================================================
+/* =========================================================
    START
-   ============================================================ */
+   ========================================================= */
 
-loadFilesFromGitHub();
+loadFilesFromGitHub()
+.catch(error => {
+
+    console.error(
+        "Failed to load data:",
+        error
+    );
+
+    statusElement.textContent =
+        "Failed to load data: " +
+        error.message;
+});
 
 </script>
 
