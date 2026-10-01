@@ -24,7 +24,7 @@ Versión revisada con IA del script original para correr en pequeños dispositiv
 
 ### COGarome2geoTIFF.py
 
-Revisión del script **piArome2geoTiff.py** con salida a formato COG (Cloud Optimized GeoTIFF) para facilitar la repredentación en mapas web.
+Revisión del script **piArome2geoTiff.py** con salida a formato COG (Cloud Optimized GeoTIFF) para facilitar la representación en mapas web.
 
 ## Archivos TIFF
 
