@@ -6,7 +6,6 @@
 <title>AEMET HARMONIE-AROME Viewer</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/proj4@2.10.0/dist/proj4.js"></script>
 <script src="https://unpkg.com/geotiff"></script>
@@ -110,16 +109,6 @@ button.action:hover{
     min-height:15px;
 }
 
-#pixelValue{
-    background:#111;
-    color:white;
-    border-radius:0 0 5px 5px;
-    padding:7px 8px;
-    font-size:12px;
-    min-height:16px;
-    margin-bottom:0;
-}
-
 #legend{
     margin-top:6px;
 }
@@ -143,13 +132,73 @@ button.action:hover{
     margin-top:2px;
 }
 
+/*
+ * Pixel readout is deliberately outside the collapsible panel.
+ */
+#pixelValue{
+    position:absolute;
+    z-index:1200;
+    left:12px;
+    bottom:25px;
+    max-width:calc(100vw - 30px);
+    box-sizing:border-box;
+    background:rgba(17,17,17,.92);
+    color:white;
+    border-radius:6px;
+    padding:7px 9px;
+    font-size:12px;
+    box-shadow:0 2px 12px rgba(0,0,0,.35);
+    min-height:16px;
+    pointer-events:none;
+}
+
+/*
+ * Opacity control sits alongside the existing timeline,
+ * without changing the timeline itself.
+ */
+#opacityControl{
+    position:absolute;
+    z-index:1100;
+    right:15px;
+    bottom:25px;
+    width:145px;
+    box-sizing:border-box;
+    background:rgba(255,255,255,.96);
+    border-radius:9px;
+    box-shadow:0 2px 15px rgba(0,0,0,.35);
+    padding:7px 9px;
+}
+
+#opacityTop{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:7px;
+    font-size:11px;
+    font-weight:bold;
+    margin-bottom:3px;
+}
+
+#opacityValue{
+    font-weight:normal;
+    color:#555;
+}
+
+#opacitySlider{
+    width:100%;
+    margin:0;
+    padding:0;
+    cursor:pointer;
+}
+
 #timeline{
     position:absolute;
     z-index:1100;
     left:50%;
     bottom:25px;
     transform:translateX(-50%);
-    width:min(900px,calc(100vw - 30px));
+    width:min(900px,calc(100vw - 350px));
+    min-width:300px;
     background:rgba(255,255,255,.96);
     border-radius:9px;
     box-shadow:0 2px 15px rgba(0,0,0,.35);
@@ -210,13 +259,66 @@ button.action:hover{
     font-weight:bold;
 }
 
+/*
+ * Community labels.
+ * A small white halo keeps dark text readable over the raster.
+ */
+.aemet-community-label{
+    background:transparent;
+    border:0;
+    box-shadow:none;
+    color:#34383c;
+    font-size:11px;
+    font-weight:bold;
+    text-shadow:
+        -1px -1px 0 rgba(255,255,255,.9),
+         1px -1px 0 rgba(255,255,255,.9),
+        -1px  1px 0 rgba(255,255,255,.9),
+         1px  1px 0 rgba(255,255,255,.9);
+    white-space:nowrap;
+}
+
+.aemet-community-label:before{
+    display:none;
+}
+
+@media(max-width:950px){
+    #timeline{
+        width:calc(100vw - 30px);
+        bottom:68px;
+        min-width:0;
+    }
+
+    #opacityControl{
+        right:15px;
+        bottom:15px;
+    }
+
+    #pixelValue{
+        left:12px;
+        bottom:15px;
+    }
+}
+
 @media(max-width:600px){
     #panel{
         width:300px;
     }
 
     #timeline{
-        bottom:20px;
+        bottom:68px;
+    }
+
+    #opacityControl{
+        width:130px;
+    }
+
+    #pixelValue{
+        bottom:15px;
+        max-width:calc(100vw - 160px);
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
     }
 }
 </style>
@@ -252,10 +354,10 @@ button.action:hover{
             <div id="legendLabels"></div>
         </div>
     </div>
+</div>
 
-    <div id="pixelValue">
-        Click the map to read the raster value.
-    </div>
+<div id="pixelValue">
+    Click the map to read the raster value.
 </div>
 
 <div id="timeline">
@@ -266,6 +368,21 @@ button.action:hover{
     <div id="timelineScroller">
         <div id="timelineItems"></div>
     </div>
+</div>
+
+<div id="opacityControl">
+    <div id="opacityTop">
+        <span>Opacity</span>
+        <span id="opacityValue">90%</span>
+    </div>
+    <input
+        id="opacitySlider"
+        type="range"
+        min="0"
+        max="100"
+        step="1"
+        value="90"
+    >
 </div>
 
 <script>
@@ -295,10 +412,29 @@ const PRODUCTS = {
     "_11.tif":{
         name:"Temperatura",
         unit:"°C",
-        R:[122,150,181,209,138,166,196,224,255,26,26,28,28,31,0,10,20,33,102,204,255,255,255,255,255,255,255,232,209,178,161,138],
-        G:[56,48,41,33,43,97,148,201,255,26,54,84,112,143,237,217,196,178,255,255,255,222,191,158,128,0,51,51,51,51,54,54],
-        B:[140,140,140,143,227,232,240,247,255,112,148,184,219,255,237,214,191,171,102,0,0,0,0,0,0,178,145,112,79,46,15],
-        v:[-27.5,-22.5,-17.5,-12.5,-9,-7,-5,-3,-1,1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,44]
+        R:[
+            122,150,181,209,138,166,196,224,
+            255,26,26,28,28,31,0,10,20,33,
+            102,204,255,255,255,255,255,255,
+            255,232,209,178,161,138
+        ],
+        G:[
+            56,48,41,33,43,97,148,201,
+            255,26,54,84,112,143,237,217,
+            196,178,255,255,255,222,191,158,
+            128,0,51,51,51,51,54,54
+        ],
+        B:[
+            140,140,140,143,227,232,240,247,
+            255,112,148,184,219,255,237,214,
+            191,171,102,0,0,0,0,0,0,178,
+            145,112,79,46,15
+        ],
+        v:[
+            -27.5,-22.5,-17.5,-12.5,-9,-7,-5,-3,
+            -1,1,3,5,7,9,11,13,15,17,19,21,
+            23,25,27,29,31,33,35,37,39,41,43,44
+        ]
     },
 
     "_32.tif":{
@@ -384,10 +520,15 @@ const PRODUCTS = {
 };
 
 
-const map = L.map("map", {
-    preferCanvas:true,
-    zoomControl:true
-}).setView([40.25,-3.7],6);
+const map =
+    L.map("map",{
+        preferCanvas:true,
+        zoomControl:true
+    }).setView(
+        [40.25,-3.7],
+        6
+    );
+
 
 L.tileLayer(
     "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -396,6 +537,107 @@ L.tileLayer(
         attribution:"&copy; OpenStreetMap contributors"
     }
 ).addTo(map);
+
+
+/*
+ * Autonomous Communities overlay.
+ *
+ * The official Spanish territorial-boundary service provides
+ * the "Comunidades Autónomas" layer as layer 1.
+ *
+ * We fetch it as GeoJSON so the boundary colour and labels
+ * remain completely under our control.
+ */
+const COMMUNITY_GEOJSON_URL =
+    "https://mapas.fomento.gob.es/arcgis/rest/services/SIU/ENTIDADES_TERRITORIALES_EGRN/MapServer/1/query" +
+    "?where=1%3D1" +
+    "&outFields=NAMEUNIT" +
+    "&returnGeometry=true" +
+    "&outSR=4326" +
+    "&f=geojson";
+
+const communityPane =
+    map.createPane("aemet-community-pane");
+
+communityPane.style.zIndex = 450;
+
+let communityLayer = null;
+
+async function loadCommunityOverlay(){
+
+    try{
+
+        const response =
+            await fetch(
+                COMMUNITY_GEOJSON_URL,
+                {
+                    cache:"no-store"
+                }
+            );
+
+        if(!response.ok){
+            throw new Error(
+                "Community boundary service returned HTTP " +
+                response.status
+            );
+        }
+
+        const geojson =
+            await response.json();
+
+        communityLayer =
+            L.geoJSON(
+                geojson,
+                {
+                    pane:"aemet-community-pane",
+
+                    style:{
+                        color:"#4b4f54",
+                        weight:1.6,
+                        opacity:0.95,
+                        fill:false,
+                        fillOpacity:0
+                    },
+
+                    onEachFeature:(
+                        feature,
+                        layer
+                    ) => {
+
+                        const name =
+                            feature &&
+                            feature.properties
+                                ? feature.properties.NAMEUNIT
+                                : null;
+
+                        if(name){
+
+                            layer.bindTooltip(
+                                name,
+                                {
+                                    permanent:true,
+                                    direction:"center",
+                                    className:
+                                        "aemet-community-label",
+                                    opacity:1,
+                                    sticky:false
+                                }
+                            );
+                        }
+                    }
+                }
+            ).addTo(map);
+
+    }catch(error){
+
+        console.error(
+            "Failed to load community boundaries:",
+            error
+        );
+    }
+}
+
+loadCommunityOverlay();
 
 
 let allFiles = [];
@@ -420,70 +662,147 @@ let paneGeneration = 0;
 let loadGeneration = 0;
 let loadAbortController = null;
 
+let rasterOpacity = 0.9;
+
 
 const variableSelect =
-    document.getElementById("variableSelect");
+    document.getElementById(
+        "variableSelect"
+    );
 
 const statusElement =
-    document.getElementById("status");
+    document.getElementById(
+        "status"
+    );
 
 const pixelValueElement =
-    document.getElementById("pixelValue");
+    document.getElementById(
+        "pixelValue"
+    );
 
 const timelineItems =
-    document.getElementById("timelineItems");
+    document.getElementById(
+        "timelineItems"
+    );
 
 const timelineScroller =
-    document.getElementById("timelineScroller");
+    document.getElementById(
+        "timelineScroller"
+    );
 
 const legendTitle =
-    document.getElementById("legendTitle");
+    document.getElementById(
+        "legendTitle"
+    );
 
 const legendBar =
-    document.getElementById("legendBar");
+    document.getElementById(
+        "legendBar"
+    );
 
 const legendLabels =
-    document.getElementById("legendLabels");
+    document.getElementById(
+        "legendLabels"
+    );
 
 const downloadButton =
-    document.getElementById("downloadButton");
-
-
-document.getElementById("githubButton")
-.addEventListener("click",() => {
-
-    window.open(
-        GITHUB_REPO,
-        "_blank",
-        "noopener"
+    document.getElementById(
+        "downloadButton"
     );
-});
+
+const opacitySlider =
+    document.getElementById(
+        "opacitySlider"
+    );
+
+const opacityValue =
+    document.getElementById(
+        "opacityValue"
+    );
+
+
+document.getElementById(
+    "githubButton"
+).addEventListener(
+    "click",
+    () => {
+
+        window.open(
+            GITHUB_REPO,
+            "_blank",
+            "noopener"
+        );
+    }
+);
+
+
+opacitySlider.addEventListener(
+    "input",
+    () => {
+
+        rasterOpacity =
+            Number(
+                opacitySlider.value
+            ) / 100;
+
+        opacityValue.textContent =
+            Math.round(
+                rasterOpacity * 100
+            ) +
+            "%";
+
+        if(currentRasterLayer){
+
+            try{
+
+                currentRasterLayer.setOpacity(
+                    rasterOpacity
+                );
+
+            }catch(_){
+
+                try{
+
+                    currentRasterLayer.options.opacity =
+                        rasterOpacity;
+
+                    currentRasterLayer.redraw();
+
+                }catch(_){}
+            }
+        }
+    }
+);
 
 
 let panelCollapsed = false;
 
-document.getElementById("collapseButton")
-.addEventListener("click",event => {
+document.getElementById(
+    "collapseButton"
+).addEventListener(
+    "click",
+    event => {
 
-    event.stopPropagation();
+        event.stopPropagation();
 
-    panelCollapsed =
-        !panelCollapsed;
+        panelCollapsed =
+            !panelCollapsed;
 
-    document.getElementById(
-        "collapsibleContent"
-    ).style.display =
-        panelCollapsed
-            ? "none"
-            : "block";
+        document.getElementById(
+            "collapsibleContent"
+        ).style.display =
+            panelCollapsed
+                ? "none"
+                : "block";
 
-    document.getElementById(
-        "collapseButton"
-    ).textContent =
-        panelCollapsed
-            ? "+"
-            : "−";
-});
+        document.getElementById(
+            "collapseButton"
+        ).textContent =
+            panelCollapsed
+                ? "+"
+                : "−";
+    }
+);
 
 
 function getProductCode(filename){
@@ -493,7 +812,9 @@ function getProductCode(filename){
     }
 
     const name =
-        filename.toLowerCase().trim();
+        filename
+        .toLowerCase()
+        .trim();
 
     const base =
         name.replace(
@@ -506,9 +827,16 @@ function getProductCode(filename){
         const cleanCode =
             code
             .toLowerCase()
-            .replace(/\.tif$/i,"");
+            .replace(
+                /\.tif$/i,
+                ""
+            );
 
-        if(base.endsWith(cleanCode)){
+        if(
+            base.endsWith(
+                cleanCode
+            )
+        ){
             return code;
         }
     }
@@ -574,49 +902,59 @@ async function loadFilesFromGitHub(){
 
     allFiles =
         files
-        .filter(file =>
-            file &&
-            file.type === "file" &&
-            /\.(tif|tiff)$/i.test(file.name)
+        .filter(
+            file =>
+                file &&
+                file.type === "file" &&
+                /\.(tif|tiff)$/i.test(
+                    file.name
+                )
         )
-        .map(file => {
+        .map(
+            file => {
 
-            const productCode =
-                getProductCode(file.name);
-
-            if(!productCode){
-                return null;
-            }
-
-            const product =
-                PRODUCTS[productCode];
-
-            if(!product){
-                return null;
-            }
-
-            return {
-                ...file,
-                productCode,
-                product,
-                date:
-                    parseDateFromFilename(
+                const productCode =
+                    getProductCode(
                         file.name
-                    )
-            };
-        })
+                    );
+
+                if(!productCode){
+                    return null;
+                }
+
+                const product =
+                    PRODUCTS[
+                        productCode
+                    ];
+
+                if(!product){
+                    return null;
+                }
+
+                return {
+                    ...file,
+                    productCode,
+                    product,
+                    date:
+                        parseDateFromFilename(
+                            file.name
+                        )
+                };
+            }
+        )
         .filter(Boolean)
-        .sort((a,b) =>
-            (
-                a.date
-                    ? a.date.getTime()
-                    : 0
-            ) -
-            (
-                b.date
-                    ? b.date.getTime()
-                    : 0
-            )
+        .sort(
+            (a,b) =>
+                (
+                    a.date
+                        ? a.date.getTime()
+                        : 0
+                ) -
+                (
+                    b.date
+                        ? b.date.getTime()
+                        : 0
+                )
         );
 
     if(!allFiles.length){
@@ -628,19 +966,32 @@ async function loadFilesFromGitHub(){
 
     filesByVariable = {};
 
-    for(const file of allFiles){
+    for(
+        const file of allFiles
+    ){
 
-        if(!filesByVariable[file.productCode]){
-            filesByVariable[file.productCode] = [];
+        if(
+            !filesByVariable[
+                file.productCode
+            ]
+        ){
+
+            filesByVariable[
+                file.productCode
+            ] = [];
         }
 
-        filesByVariable[file.productCode].push(file);
+        filesByVariable[
+            file.productCode
+        ].push(file);
     }
 
     populateVariableSelect();
 
     const firstVariable =
-        Object.keys(filesByVariable)[0];
+        Object.keys(
+            filesByVariable
+        )[0];
 
     currentVariable =
         firstVariable;
@@ -651,7 +1002,9 @@ async function loadFilesFromGitHub(){
     renderTimeline();
 
     const filesForVariable =
-        filesByVariable[currentVariable];
+        filesByVariable[
+            currentVariable
+        ];
 
     if(filesForVariable.length){
 
@@ -666,21 +1019,30 @@ function populateVariableSelect(){
 
     variableSelect.innerHTML = "";
 
-    for(const code of PRODUCT_CODES){
+    for(
+        const code of PRODUCT_CODES
+    ){
 
-        if(!filesByVariable[code]){
+        if(
+            !filesByVariable[code]
+        ){
             continue;
         }
 
         const option =
-            document.createElement("option");
+            document.createElement(
+                "option"
+            );
 
-        option.value = code;
+        option.value =
+            code;
 
         option.textContent =
             PRODUCTS[code].name;
 
-        variableSelect.appendChild(option);
+        variableSelect.appendChild(
+            option
+        );
     }
 
     variableSelect.value =
@@ -746,13 +1108,19 @@ function renderTimeline(){
             currentVariable
         ] || [];
 
-    for(let i=0;i<files.length;i++){
+    for(
+        let i = 0;
+        i < files.length;
+        i++
+    ){
 
         const file =
             files[i];
 
         const button =
-            document.createElement("button");
+            document.createElement(
+                "button"
+            );
 
         button.className =
             "timeButton";
@@ -761,17 +1129,22 @@ function renderTimeline(){
             i;
 
         button.textContent =
-            formatTime(file.date);
+            formatTime(
+                file.date
+            );
 
         button.title =
             file.name;
 
         button.addEventListener(
             "click",
-            () => loadRaster(file)
+            () =>
+                loadRaster(file)
         );
 
-        timelineItems.appendChild(button);
+        timelineItems.appendChild(
+            button
+        );
     }
 
     updateTimelineActive();
@@ -785,19 +1158,23 @@ function updateTimelineActive(){
             ".timeButton"
         );
 
-    buttons.forEach(button => {
+    buttons.forEach(
+        button => {
 
-        const index =
-            Number(button.dataset.index);
+            const index =
+                Number(
+                    button.dataset.index
+                );
 
-        button.classList.toggle(
-            "active",
-            currentFile &&
-            filesByVariable[
-                currentVariable
-            ][index] === currentFile
-        );
-    });
+            button.classList.toggle(
+                "active",
+                currentFile &&
+                filesByVariable[
+                    currentVariable
+                ][index] === currentFile
+            );
+        }
+    );
 
     const active =
         timelineItems.querySelector(
@@ -806,11 +1183,13 @@ function updateTimelineActive(){
 
     if(active){
 
-        active.scrollIntoView({
-            behavior:"smooth",
-            block:"nearest",
-            inline:"center"
-        });
+        active.scrollIntoView(
+            {
+                behavior:"smooth",
+                block:"nearest",
+                inline:"center"
+            }
+        );
     }
 }
 
@@ -872,9 +1251,11 @@ timelineScroller.addEventListener(
         );
 
         try{
+
             timelineScroller.releasePointerCapture(
                 event.pointerId
             );
+
         }catch(_){}
     }
 );
@@ -933,10 +1314,14 @@ document.addEventListener(
 
         let index =
             currentFile
-                ? files.indexOf(currentFile)
+                ? files.indexOf(
+                    currentFile
+                )
                 : 0;
 
-        if(event.key === "ArrowLeft"){
+        if(
+            event.key === "ArrowLeft"
+        ){
 
             index =
                 Math.max(
@@ -946,7 +1331,9 @@ document.addEventListener(
 
             event.preventDefault();
 
-        }else if(event.key === "ArrowRight"){
+        }else if(
+            event.key === "ArrowRight"
+        ){
 
             index =
                 Math.min(
@@ -956,20 +1343,26 @@ document.addEventListener(
 
             event.preventDefault();
 
-        }else if(event.key === "Home"){
+        }else if(
+            event.key === "Home"
+        ){
 
             index = 0;
 
             event.preventDefault();
 
-        }else if(event.key === "End"){
+        }else if(
+            event.key === "End"
+        ){
 
             index =
                 files.length - 1;
 
             event.preventDefault();
 
-        }else if(event.key === "PageUp"){
+        }else if(
+            event.key === "PageUp"
+        ){
 
             index =
                 Math.max(
@@ -979,7 +1372,9 @@ document.addEventListener(
 
             event.preventDefault();
 
-        }else if(event.key === "PageDown"){
+        }else if(
+            event.key === "PageDown"
+        ){
 
             index =
                 Math.min(
@@ -990,6 +1385,7 @@ document.addEventListener(
             event.preventDefault();
 
         }else{
+
             return;
         }
 
@@ -1026,7 +1422,11 @@ function updateLegend(product){
 
     const stops = [];
 
-    for(let i=0;i<count;i++){
+    for(
+        let i = 0;
+        i < count;
+        i++
+    ){
 
         stops.push(
             "rgb(" +
@@ -1048,24 +1448,35 @@ function updateLegend(product){
 
     [
         0,
-        Math.floor((count - 1) / 2),
+        Math.floor(
+            (count - 1) / 2
+        ),
         count - 1
-    ].forEach(index => {
+    ].forEach(
+        index => {
 
-        const span =
-            document.createElement("span");
+            const span =
+                document.createElement(
+                    "span"
+                );
 
-        span.textContent =
-            product.v[index] +
-            " " +
-            product.unit;
+            span.textContent =
+                product.v[index] +
+                " " +
+                product.unit;
 
-        legendLabels.appendChild(span);
-    });
+            legendLabels.appendChild(
+                span
+            );
+        }
+    );
 }
 
 
-function colorForValue(value,product){
+function colorForValue(
+    value,
+    product
+){
 
     const v = product.v;
     const R = product.R;
@@ -1084,7 +1495,9 @@ function colorForValue(value,product){
         return [0,0,0];
     }
 
-    if(value <= v[0]){
+    if(
+        value <= v[0]
+    ){
 
         return [
             R[0],
@@ -1093,7 +1506,10 @@ function colorForValue(value,product){
         ];
     }
 
-    if(value >= v[count - 1]){
+    if(
+        value >=
+        v[count - 1]
+    ){
 
         return [
             R[count - 1],
@@ -1102,42 +1518,49 @@ function colorForValue(value,product){
         ];
     }
 
-    for(let i=0;i<count-1;i++){
+    for(
+        let i = 0;
+        i < count - 1;
+        i++
+    ){
 
         if(
             value >= v[i] &&
-            value <= v[i+1]
+            value <= v[i + 1]
         ){
 
             const range =
-                v[i+1] - v[i];
+                v[i + 1] -
+                v[i];
 
             const t =
                 range === 0
                     ? 0
                     : (
-                        value - v[i]
-                    ) / range;
+                        value -
+                        v[i]
+                    ) /
+                    range;
 
             return [
                 Math.round(
                     R[i] +
                     (
-                        R[i+1] -
+                        R[i + 1] -
                         R[i]
                     ) * t
                 ),
                 Math.round(
                     G[i] +
                     (
-                        G[i+1] -
+                        G[i + 1] -
                         G[i]
                     ) * t
                 ),
                 Math.round(
                     B[i] +
                     (
-                        B[i+1] -
+                        B[i + 1] -
                         B[i]
                     ) * t
                 )
@@ -1158,9 +1581,11 @@ function destroyRasterLayer(){
     if(currentRasterLayer){
 
         try{
+
             map.removeLayer(
                 currentRasterLayer
             );
+
         }catch(_){}
 
         currentRasterLayer = null;
@@ -1248,21 +1673,26 @@ async function loadRaster(file){
     pixelValueElement.textContent =
         "Click the map to read the raster value.";
 
-    updateLegend(file.product);
+    updateLegend(
+        file.product
+    );
 
-    downloadButton.onclick = () => {
+    downloadButton.onclick =
+        () => {
 
-        const separator =
-            file.download_url.includes("?")
-                ? "&"
-                : "?";
+            const separator =
+                file.download_url.includes(
+                    "?"
+                )
+                    ? "&"
+                    : "?";
 
-        window.location.href =
-            file.download_url +
-            separator +
-            "download=" +
-            Date.now();
-    };
+            window.location.href =
+                file.download_url +
+                separator +
+                "download=" +
+                Date.now();
+        };
 
     destroyRasterLayer();
 
@@ -1272,7 +1702,9 @@ async function loadRaster(file){
     try{
 
         const separator =
-            file.download_url.includes("?")
+            file.download_url.includes(
+                "?"
+            )
                 ? "&"
                 : "?";
 
@@ -1289,9 +1721,14 @@ async function loadRaster(file){
          * Do not alter this.
          */
         const georaster =
-            await parseGeoraster(cogUrl);
+            await parseGeoraster(
+                cogUrl
+            );
 
-        if(generation !== loadGeneration){
+        if(
+            generation !==
+            loadGeneration
+        ){
             return;
         }
 
@@ -1308,7 +1745,7 @@ async function loadRaster(file){
 
                 pane:paneName,
 
-                opacity:0.9,
+                opacity:rasterOpacity,
 
                 resolution:128,
 
@@ -1324,40 +1761,45 @@ async function loadRaster(file){
 
                 proj4:proj4,
 
-                pixelValuesToColorFn:values => {
+                pixelValuesToColorFn:
+                    values => {
 
-                    if(
-                        !values ||
-                        !values.length
-                    ){
-                        return null;
-                    }
+                        if(
+                            !values ||
+                            !values.length
+                        ){
+                            return null;
+                        }
 
-                    const value =
-                        Number(values[0]);
+                        const value =
+                            Number(
+                                values[0]
+                            );
 
-                    if(
-                        !Number.isFinite(value)
-                    ){
-                        return null;
-                    }
+                        if(
+                            !Number.isFinite(
+                                value
+                            )
+                        ){
+                            return null;
+                        }
 
-                    const rgb =
-                        colorForValue(
-                            value,
-                            file.product
+                        const rgb =
+                            colorForValue(
+                                value,
+                                file.product
+                            );
+
+                        return (
+                            "rgb(" +
+                            rgb[0] +
+                            "," +
+                            rgb[1] +
+                            "," +
+                            rgb[2] +
+                            ")"
                         );
-
-                    return (
-                        "rgb(" +
-                        rgb[0] +
-                        "," +
-                        rgb[1] +
-                        "," +
-                        rgb[2] +
-                        ")"
-                    );
-                }
+                    }
             });
 
         currentRasterLayer =
@@ -1365,22 +1807,24 @@ async function loadRaster(file){
 
         rasterLayer.addTo(map);
 
-        requestAnimationFrame(() => {
+        requestAnimationFrame(
+            () => {
 
-            if(
-                currentRasterLayer ===
-                rasterLayer
-            ){
+                if(
+                    currentRasterLayer ===
+                    rasterLayer
+                ){
 
-                try{
-                    rasterLayer.redraw();
-                }catch(_){}
+                    try{
+                        rasterLayer.redraw();
+                    }catch(_){}
 
-                map.invalidateSize({
-                    pan:false
-                });
+                    map.invalidateSize({
+                        pan:false
+                    });
+                }
             }
-        });
+        );
 
         /*
          * ONLY NOW open the same COG with
@@ -1395,14 +1839,20 @@ async function loadRaster(file){
                     cogUrl
                 );
 
-            if(generation !== loadGeneration){
+            if(
+                generation !==
+                loadGeneration
+            ){
                 return;
             }
 
             const geoTiffImage =
                 await geoTiff.getImage();
 
-            if(generation !== loadGeneration){
+            if(
+                generation !==
+                loadGeneration
+            ){
                 return;
             }
 
@@ -1412,7 +1862,9 @@ async function loadRaster(file){
             currentGeoTiffImage =
                 geoTiffImage;
 
-        }catch(pixelReaderError){
+        }catch(
+            pixelReaderError
+        ){
 
             /*
              * A failure here must NOT break
@@ -1430,7 +1882,9 @@ async function loadRaster(file){
         statusElement.textContent =
             file.product.name +
             " · " +
-            formatTime(file.date);
+            formatTime(
+                file.date
+            );
 
     }catch(error){
 
@@ -1468,7 +1922,10 @@ async function loadRaster(file){
  * This only calculates the pixel index.
  * It does NOT attempt to retrieve the value.
  */
-function getClickedPixel(lat,lng){
+function getClickedPixel(
+    lat,
+    lng
+){
 
     if(
         !currentGeoRaster ||
@@ -1512,8 +1969,12 @@ function getClickedPixel(lat,lng){
 
     if(
         !projected ||
-        !Number.isFinite(projected[0]) ||
-        !Number.isFinite(projected[1])
+        !Number.isFinite(
+            projected[0]
+        ) ||
+        !Number.isFinite(
+            projected[1]
+        )
     ){
         return null;
     }
@@ -1534,10 +1995,18 @@ function getClickedPixel(lat,lng){
     if(
         !origin ||
         !resolution ||
-        !Number.isFinite(origin[0]) ||
-        !Number.isFinite(origin[1]) ||
-        !Number.isFinite(resolution[0]) ||
-        !Number.isFinite(resolution[1]) ||
+        !Number.isFinite(
+            origin[0]
+        ) ||
+        !Number.isFinite(
+            origin[1]
+        ) ||
+        !Number.isFinite(
+            resolution[0]
+        ) ||
+        !Number.isFinite(
+            resolution[1]
+        ) ||
         resolution[0] === 0 ||
         resolution[1] === 0
     ){
@@ -1584,7 +2053,10 @@ function getClickedPixel(lat,lng){
  * GeoTIFF.js readRasters() uses image-coordinate
  * windows, so [x,y,x+1,y+1] is exactly one pixel.
  */
-async function readCOGPixel(lat,lng){
+async function readCOGPixel(
+    lat,
+    lng
+){
 
     if(
         !currentGeoTiffImage ||
@@ -1624,9 +2096,13 @@ async function readCOGPixel(lat,lng){
     }
 
     const value =
-        Number(data[0]);
+        Number(
+            data[0]
+        );
 
-    if(!Number.isFinite(value)){
+    if(
+        !Number.isFinite(value)
+    ){
         return null;
     }
 
@@ -1639,6 +2115,7 @@ async function readCOGPixel(lat,lng){
 
 
 let pixelReadGeneration = 0;
+
 
 map.on(
     "click",
@@ -1675,8 +2152,10 @@ map.on(
                 );
 
             if(
-                generation !== loadGeneration ||
-                readId !== pixelReadGeneration
+                generation !==
+                loadGeneration ||
+                readId !==
+                pixelReadGeneration
             ){
                 return;
             }
@@ -1712,8 +2191,10 @@ map.on(
         }catch(error){
 
             if(
-                generation !== loadGeneration ||
-                readId !== pixelReadGeneration
+                generation !==
+                loadGeneration ||
+                readId !==
+                pixelReadGeneration
             ){
                 return;
             }
@@ -1764,18 +2245,20 @@ window.addEventListener(
 
 
 loadFilesFromGitHub()
-.catch(error => {
+.catch(
+    error => {
 
-    console.error(
-        "Failed to load data:",
-        error
-    );
+        console.error(
+            "Failed to load data:",
+            error
+        );
 
-    statusElement.textContent =
-        "Failed to load data: " +
-        error.message;
-});
-
+        statusElement.textContent =
+            "Failed to load data: " +
+            error.message;
+    }
+);
 </script>
+
 </body>
 </html>
