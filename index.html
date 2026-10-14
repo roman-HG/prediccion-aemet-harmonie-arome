@@ -362,7 +362,7 @@ button.action:hover{
 
 <div id="timeline">
     <div id="timelineTop">
-        <div id="timelineTitle">Time</div>
+        <div id="timelineTitle">Time (UTC+0)</div>
     </div>
 
     <div id="timelineScroller">
@@ -1197,82 +1197,6 @@ function updateTimelineActive(){
 let timelineDragging = false;
 let timelineDragStartX = 0;
 let timelineScrollStart = 0;
-
-
-timelineScroller.addEventListener(
-    "pointerdown",
-    event => {
-
-        timelineDragging = true;
-
-        timelineScroller.classList.add(
-            "dragging"
-        );
-
-        timelineDragStartX =
-            event.clientX;
-
-        timelineScrollStart =
-            timelineScroller.scrollLeft;
-
-        timelineScroller.setPointerCapture(
-            event.pointerId
-        );
-    }
-);
-
-
-timelineScroller.addEventListener(
-    "pointermove",
-    event => {
-
-        if(!timelineDragging){
-            return;
-        }
-
-        timelineScroller.scrollLeft =
-            timelineScrollStart -
-            (
-                event.clientX -
-                timelineDragStartX
-            );
-    }
-);
-
-
-timelineScroller.addEventListener(
-    "pointerup",
-    event => {
-
-        timelineDragging = false;
-
-        timelineScroller.classList.remove(
-            "dragging"
-        );
-
-        try{
-
-            timelineScroller.releasePointerCapture(
-                event.pointerId
-            );
-
-        }catch(_){}
-    }
-);
-
-
-timelineScroller.addEventListener(
-    "pointercancel",
-    () => {
-
-        timelineDragging = false;
-
-        timelineScroller.classList.remove(
-            "dragging"
-        );
-    }
-);
-
 
 timelineScroller.addEventListener(
     "wheel",
